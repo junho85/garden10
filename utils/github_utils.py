@@ -41,12 +41,18 @@ def get_commit_history(username, start_date, end_date, page=1, per_page=30):
     return commits
 
 
+def count_commits_by_date(commits):
+    from collections import Counter
+    commit_dates = [commit.get("commit", {}).get("author", {}).get("date", "").split("T")[0] for commit in commits]
+    return Counter(commit_dates)
+
+
 def main():
     with open("config.yaml", "r", encoding="utf-8") as config_file:
         config = yaml.safe_load(config_file)
     usernames = config.get("usernames", [])
     start_date = "2025-03-04"
-    end_date = "2025-03-05"
+    end_date = "2025-03-06"
 
     for username in usernames:
         try:
@@ -59,19 +65,10 @@ def main():
             print(f"{username} 유저의 커밋 이력을 찾을 수 없습니다.")
             continue
 
-        print(f"\n{username} 유저의 최근 커밋 이력 ({len(commits)}개):")
-        for commit in commits:
-            commit_sha = commit.get("sha")
-            commit_message = commit.get("commit", {}).get("message")
-            commit_date = commit.get("commit", {}).get("author", {}).get("date")
-            repo_name = commit.get("repository", {}).get("full_name")
-
-            print("=" * 60)
-            print(f"Repository : {repo_name}")
-            print(f"Commit SHA : {commit_sha}")
-            print(f"Date       : {commit_date}")
-            print("Message    :")
-            print(commit_message)
+        print(f"\n{username} 유저의 커밋 이력 (총 {len(commits)}개):")
+        commits_by_date = count_commits_by_date(commits)
+        for commit_date, count in sorted(commits_by_date.items()):
+            print(f"{commit_date}: {count}개")
         print("=" * 60)
 
 
