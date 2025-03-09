@@ -91,27 +91,27 @@ def save_commits_to_db(username, commits):
 def main():
     with open("config.yaml", "r", encoding="utf-8") as config_file:
         config = yaml.safe_load(config_file)
-    usernames = config.get("usernames", [])
+    users = config.get("users", [])
     start_date = "2025-03-04"
-    end_date = "2025-03-07"
+    end_date = "2025-03-09"
 
-    for username in usernames:
+    for user in users:
         try:
-            commits = get_commit_history(username, start_date, end_date)
+            commits = get_commit_history(user, start_date, end_date)
         except Exception as e:
-            print(f"에러 발생 (유저: {username}):", e)
+            print(f"에러 발생 (유저: {user}):", e)
             continue
 
         if not commits:
-            print(f"{username} 유저의 커밋 이력을 찾을 수 없습니다.")
+            print(f"{user} 유저의 커밋 이력을 찾을 수 없습니다.")
             continue
 
         # DB에 저장
-        save_commits_to_db(username, commits)
-        print(f"{username} 유저의 커밋 이력이 DB에 저장되었습니다. (총 {len(commits)}개)")
+        save_commits_to_db(user, commits)
+        print(f"{user} 유저의 커밋 이력이 DB에 저장되었습니다. (총 {len(commits)}개)")
 
         # TODO DB에 저장한 내용을 기준으로 통계 정보 출력
-        print(f"\n{username} 유저의 커밋 이력 (총 {len(commits)}개):")
+        print(f"\n{user} 유저의 커밋 이력 (총 {len(commits)}개):")
         commits_by_date = count_commits_by_date(commits)
         for commit_date, count in sorted(commits_by_date.items()):
             print(f"{commit_date}: {count}개")
