@@ -4,13 +4,7 @@ from dotenv import load_dotenv
 import yaml
 
 
-def get_commit_history(username, start_date, end_date, page=1, per_page=30):
-    # .env 파일에서 환경변수를 로드
-    load_dotenv()
-    token = os.getenv("GITHUB_TOKEN")
-    if not token:
-        raise Exception("GITHUB_TOKEN 이 설정되어 있지 않습니다. .env 파일을 확인하세요.")
-
+def get_commit_history(username, start_date, end_date, page=1, per_page=30, github_token=None):
     # GitHub Commit Search API 엔드포인트
     # @see https://docs.github.com/ko/rest/search/search#search-commits
     url = "https://api.github.com/search/commits"
@@ -28,7 +22,7 @@ def get_commit_history(username, start_date, end_date, page=1, per_page=30):
     headers = {
         # Commit 검색을 위한 미리보기 헤더
         "Accept": "application/vnd.github.cloak-preview",
-        "Authorization": f"token {token}",
+        "Authorization": f"token {github_token}",
     }
 
     response = requests.get(url, headers=headers, params=params)
@@ -91,27 +85,49 @@ def save_commits_to_db(username, commits):
 def main():
     with open("config.yaml", "r", encoding="utf-8") as config_file:
         config = yaml.safe_load(config_file)
-    users = config.get("users", [])
-    start_date = "2025-03-04"
-    end_date = "2025-03-09"
-
-    for user in users:
+    
+    # 공통 GitHub API 토큰 가져오기
+    common_github_token = os.getenv("GITHUB_TOKEN")
+    
+    start_date = "2025-03-10"
+    end_date = "2025-03-12"
+    
+    # 사용자 목록 가져오기
+    users_config = config.get("users", [])
+    
+    for user_item in users_config:
+        # 사용자 정보 추출
+        github_id = None
+        user_github_token = None
+        
+        if isinstance(user_item, str):
+            github_id = user_item
+        elif isinstance(user_item, dict) and 'github_id' in user_item:
+            github_id = user_item['github_id']
+            # 사용자별 토큰이 있으면 사용
+            if 'github_api_token' in user_item:
+                user_github_token = user_item['github_api_token']
+        
+        if not github_id:
+            continue
+            
         try:
-            commits = get_commit_history(user, start_date, end_date)
+            # 사용자별 토큰이 있으면 사용, 없으면 공통 토큰 사용
+            commits = get_commit_history(github_id, start_date, end_date, github_token=user_github_token or common_github_token)
         except Exception as e:
-            print(f"에러 발생 (유저: {user}):", e)
+            print(f"에러 발생 (유저: {github_id}):", e)
             continue
 
         if not commits:
-            print(f"{user} 유저의 커밋 이력을 찾을 수 없습니다.")
+            print(f"{github_id} 유저의 커밋 이력을 찾을 수 없습니다.")
             continue
 
         # DB에 저장
-        save_commits_to_db(user, commits)
-        print(f"{user} 유저의 커밋 이력이 DB에 저장되었습니다. (총 {len(commits)}개)")
+        save_commits_to_db(github_id, commits)
+        # print(f"{github_id} 유저의 커밋 이력이 DB에 저장되었습니다. (총 {len(commits)}개)")
 
         # TODO DB에 저장한 내용을 기준으로 통계 정보 출력
-        print(f"\n{user} 유저의 커밋 이력 (총 {len(commits)}개):")
+        print(f"\n{github_id} 유저의 커밋 이력 (총 {len(commits)}개):")
         commits_by_date = count_commits_by_date(commits)
         for commit_date, count in sorted(commits_by_date.items()):
             print(f"{commit_date}: {count}개")

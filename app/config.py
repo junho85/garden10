@@ -9,14 +9,20 @@ from typing import Optional, List, Dict, Any, ClassVar
 class UserConfig(BaseSettings):
     """사용자 설정"""
     github_id: str
+    github_api_token: Optional[str] = None
 
 
 class Settings(BaseSettings):
     """애플리케이션 설정"""
 
+    # 데이터베이스 설정
+    DATABASE_URL: str = Field(default="postgresql://myuser:mypassword@db:5432/mydatabase")
+
+    # GitHub API 설정
+    GITHUB_API_TOKEN: Optional[str] = None
+
     # 참가자 목록
     USERS: List[UserConfig] = []
-
 
 
 def load_config_from_yaml(file_path: str = None) -> Dict[str, Any]:
@@ -49,15 +55,21 @@ if yaml_config:
 
     # 사용자 목록 변환
     if 'users' in yaml_config and isinstance(yaml_config['users'], list):
-        # github_id만 사용하는 방식으로 변경
         users = []
         for user_item in yaml_config['users']:
             # 문자열인 경우 (github_id만 있는 경우)
             if isinstance(user_item, str):
                 users.append(UserConfig(github_id=user_item))
-            # 딕셔너리인 경우 (이전 형식과의 호환성)
+            # 딕셔너리인 경우
             elif isinstance(user_item, dict) and 'github_id' in user_item:
-                users.append(UserConfig(github_id=user_item['github_id']))
+                user_config = {
+                    'github_id': user_item['github_id'],
+                }
+                # 개별 사용자의 GitHub API 토큰이 있으면 추가
+                if 'github_api_token' in user_item:
+                    user_config['github_api_token'] = user_item['github_api_token']
+                
+                users.append(UserConfig(**user_config))
 
         settings_dict['USERS'] = users
 
