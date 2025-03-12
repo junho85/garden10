@@ -5,6 +5,13 @@ import yaml
 
 
 def get_commit_history(username, start_date, end_date, page=1, per_page=30, github_token=None):
+    # TODO API 로 확인되고 나면 여기 코드는 제거
+    # .env 파일에서 환경변수를 로드
+    load_dotenv()
+    github_token = os.getenv("GITHUB_TOKEN")
+    if not github_token:
+        raise Exception("GITHUB_TOKEN 이 설정되어 있지 않습니다. .env 파일을 확인하세요.")
+
     # GitHub Commit Search API 엔드포인트
     # @see https://docs.github.com/ko/rest/search/search#search-commits
     url = "https://api.github.com/search/commits"
