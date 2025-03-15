@@ -7,11 +7,11 @@ import os
 
 class Test(IsolatedAsyncioTestCase):
     async def test_get_github_commits(self):
-        check_date = datetime.strptime("2025-03-13", "%Y-%m-%d").date()
-        # 환경 변수나 테스트용 토큰 사용
-        api_token = os.environ.get("GITHUB_API_TOKEN", "test_token")
-        # github_id = "junho85"
-        github_id = "kevinoriginal"
+        check_date = datetime.strptime("2025-03-14", "%Y-%m-%d").date()
+
+        api_token = os.environ.get("GITHUB_API_TOKEN")
+        github_id = "junho85"
+        # github_id = "kevinoriginal"
         result = await get_github_commits(github_id, check_date, api_token)
         print(json.dumps(result, indent=2))
 
