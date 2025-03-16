@@ -1,16 +1,3 @@
-CREATE TABLE github_commits
-(
-    id             SERIAL PRIMARY KEY,
-    username       VARCHAR(255),
-    commit_hash    VARCHAR(40),
-    commit_message TEXT,
-    commit_date    TIMESTAMP,
-    repo_name      VARCHAR(255),
-    commit_url     TEXT,
-    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (commit_hash, repo_name) -- 동일한 commit_hash와 repo에서 중복 방지
-);
-
 CREATE TABLE users
 (
     id                 SERIAL PRIMARY KEY,
@@ -18,4 +5,27 @@ CREATE TABLE users
     github_api_token   TEXT,
     created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE github_commits
+(
+    id             SERIAL PRIMARY KEY,
+    github_id      VARCHAR(255) NOT NULL,
+    commit_id      VARCHAR(255) NOT NULL UNIQUE,
+    repository     VARCHAR(255) NOT NULL,
+    message        TEXT NOT NULL,
+    commit_url     TEXT NOT NULL,
+    commit_date    TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE attendance (
+    id SERIAL PRIMARY KEY,
+    github_id      VARCHAR(255) NOT NULL,
+    attendance_date DATE NOT NULL,
+    is_attended BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (github_id, attendance_date)
 );
