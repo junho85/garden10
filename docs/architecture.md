@@ -36,15 +36,17 @@ CREATE TABLE users
 ```sql
 CREATE TABLE github_commits
 (
-    id             SERIAL PRIMARY KEY,
-    github_id      VARCHAR(255) NOT NULL,
-    commit_id      VARCHAR(255) NOT NULL UNIQUE,
-    repository     VARCHAR(255) NOT NULL,
-    message        TEXT NOT NULL,
-    commit_url     TEXT NOT NULL,
-    commit_date    TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    id          SERIAL PRIMARY KEY,
+    github_id   VARCHAR(255)             NOT NULL,
+    commit_id   VARCHAR(255)             NOT NULL UNIQUE,
+    repository  VARCHAR(255)             NOT NULL,
+    message     TEXT                     NOT NULL,
+    commit_url  TEXT                     NOT NULL,
+    commit_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    constraint unique_commit
+        unique (commit_id, repository)
 );
 ```
 
