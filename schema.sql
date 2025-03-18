@@ -17,7 +17,9 @@ CREATE TABLE github_commits
     commit_url  TEXT                     NOT NULL,
     commit_date TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    constraint unique_commit
+        unique (commit_id, repository)
 );
 
 CREATE TABLE attendance
