@@ -12,11 +12,16 @@ router = APIRouter()
 
 # Pydantic 모델 정의
 class UserBase(BaseModel):
-    id: int
     github_id: str
 
 
-class UserResponse(UserBase):
+class UserCreate(UserBase):
+    github_api_token: Optional[str] = None
+
+
+class UserResponse(BaseModel):
+    id: int
+    github_id: str
     github_profile_url: Optional[str] = None
 
 
@@ -30,3 +35,31 @@ async def get_users(db: Session = Depends(get_db)):
         user.github_profile_url = f"https://avatars.githubusercontent.com/{user.github_id}"
 
     return users
+
+
+# 사용자 추가
+@router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED, tags=["users"])
+async def create_user(user: UserCreate, db: Session = Depends(get_db)):
+    """새로운 사용자를 추가합니다."""
+    # 이미 존재하는 github_id 확인
+    db_user = db.query(User).filter(User.github_id == user.github_id).first()
+    if db_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="이미 등록된 github_id입니다."
+        )
+    
+    # 새 사용자 생성
+    new_user = User(
+        github_id=user.github_id,
+        github_api_token=user.github_api_token
+    )
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    # 응답 데이터 생성
+    new_user.github_profile_url = f"https://avatars.githubusercontent.com/{new_user.github_id}"
+    
+    return new_user
