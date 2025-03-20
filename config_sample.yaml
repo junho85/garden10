@@ -1,10 +1,8 @@
-# 공통 GitHub API 토큰 (모든 사용자에게 적용되는 기본값)
-github_api_token: "your_common_github_token_here"
+database:
+  url: postgresql://myuser:mypassword@localhost:5432/mydatabase
+github:
+  # 공통 GitHub API 토큰 (모든 사용자에게 적용되는 기본값)
+  api_token: "your_common_github_token_here"
+admin: # 유저 정보 등록 등 관리자 권한이 필요한 API에 대한 인증 키
+  api_key: admin_secret_key_12345
 
-# 참가자 목록
-users:
-  # 간단한 형식 (공통 토큰 사용)
-  - github_id: junho85
-  # 개인 토큰이 있는 경우 (개인 토큰을 우선 사용)
-  - github_id: testuser
-    github_api_token: "user_specific_github_token_here"
