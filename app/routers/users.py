@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
@@ -6,8 +6,20 @@ import httpx
 
 from app.database import get_db
 from app.models.user import User
+from app.config import config
 
 router = APIRouter()
+
+
+# 관리자 인증 함수
+async def verify_admin_api_key(x_api_key: str = Header(...)):
+    admin_config = config.admin
+    if not admin_config or x_api_key != admin_config.get("api_key"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="관리자 권한이 필요합니다."
+        )
+    return True
 
 
 # Pydantic 모델 정의
@@ -37,10 +49,14 @@ async def get_users(db: Session = Depends(get_db)):
     return users
 
 
-# 사용자 추가
+# 사용자 추가 (관리자 권한 필요)
 @router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED, tags=["users"])
-async def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    """새로운 사용자를 추가합니다."""
+async def create_user(
+    user: UserCreate, 
+    db: Session = Depends(get_db),
+    is_admin: bool = Depends(verify_admin_api_key)
+):
+    """새로운 사용자를 추가합니다. 관리자 권한이 필요합니다."""
     # 이미 존재하는 github_id 확인
     db_user = db.query(User).filter(User.github_id == user.github_id).first()
     if db_user:
