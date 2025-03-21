@@ -77,11 +77,13 @@ CREATE TABLE attendance (
    - 출석 데이터 DB 저장 및 조회
    - 출석 통계 데이터 집계
 
-#### API 엔드포인트 (`/app/api/`)
+#### API 엔드포인트 (`/app/routers/`)
 1. **사용자 관리 (`/api/users`)**
    - `GET /api/users`: 모든 사용자 목록 조회
-   - `POST /api/users`: 새 사용자 등록
-   - `PUT /api/users/{username}`: 사용자 정보 업데이트
+   - `GET /api/users/{user_id}`: ID로 사용자 조회
+   - `GET /api/users/github/{github_id}`: GitHub ID로 사용자 조회
+   - `POST /api/users`: 새 사용자 등록 (관리자 권한 필요)
+   - `PUT /api/users/{user_id}`: 사용자 정보 업데이트 (관리자 권한 필요)
 
 2. **출석 데이터 관리 (`/api/attendance`)**
    - `GET /api/attendance/date/{date}`: 특정 날짜의 모든 사용자 출석 현황 조회
