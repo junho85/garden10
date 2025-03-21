@@ -31,6 +31,10 @@ class UserCreate(UserBase):
     github_api_token: Optional[str] = None
 
 
+class UserUpdate(BaseModel):
+    github_api_token: Optional[str] = None
+
+
 class UserResponse(BaseModel):
     id: int
     github_id: str
@@ -47,6 +51,21 @@ async def get_users(db: Session = Depends(get_db)):
         user.github_profile_url = f"https://avatars.githubusercontent.com/{user.github_id}"
 
     return users
+
+
+# 사용자 조회
+@router.get("/users/{user_id}", response_model=UserResponse, tags=["users"])
+async def get_user(user_id: int, db: Session = Depends(get_db)):
+    """특정 ID의 사용자를 조회합니다."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="사용자를 찾을 수 없습니다."
+        )
+    
+    user.github_profile_url = f"https://avatars.githubusercontent.com/{user.github_id}"
+    return user
 
 
 # 사용자 추가 (관리자 권한 필요)
@@ -79,3 +98,34 @@ async def create_user(
     new_user.github_profile_url = f"https://avatars.githubusercontent.com/{new_user.github_id}"
     
     return new_user
+
+
+# 사용자 정보 업데이트 (관리자 권한 필요)
+@router.put("/users/{user_id}", response_model=UserResponse, tags=["users"])
+async def update_user(
+    user_id: int,
+    user_update: UserUpdate,
+    db: Session = Depends(get_db),
+    is_admin: bool = Depends(verify_admin_api_key)
+):
+    """사용자 정보를 업데이트합니다. 관리자 권한이 필요합니다."""
+    # 사용자 존재 확인
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="사용자를 찾을 수 없습니다."
+        )
+    
+    # 업데이트할 필드 설정
+    if user_update.github_api_token is not None:
+        db_user.github_api_token = user_update.github_api_token
+    
+    # 변경 내용 저장
+    db.commit()
+    db.refresh(db_user)
+    
+    # 응답 데이터 생성
+    db_user.github_profile_url = f"https://avatars.githubusercontent.com/{db_user.github_id}"
+    
+    return db_user
