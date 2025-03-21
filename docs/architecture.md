@@ -66,7 +66,7 @@ CREATE TABLE attendance (
 
 ### 컴포넌트 구조
 
-#### 서비스 계층
+#### 서비스 계층 (`/app/services/`)
 1. **GitHub Service (`github_service.py`)**
    - GitHub API를 통해 사용자별 커밋 내역 조회
    - 커밋 데이터 정제 및 가공
@@ -77,17 +77,17 @@ CREATE TABLE attendance (
    - 출석 데이터 DB 저장 및 조회
    - 출석 통계 데이터 집계
 
-#### API 엔드포인트
-1. **출석 데이터 관리 (`/attendance`)**
-   - `GET /attendance/date/{date}`: 특정 날짜의 모든 사용자 출석 현황 조회
-   - `GET /attendance/user/{username}`: 특정 사용자의 전체 출석 현황 조회
-   - `GET /attendance/stats`: 출석률, 순위 등 통계 데이터 조회
-   - `POST /attendance/refresh`: 출석 데이터 수동 갱신
+#### API 엔드포인트 (`/app/api/`)
+1. **사용자 관리 (`/api/users`)**
+   - `GET /api/users`: 모든 사용자 목록 조회
+   - `POST /api/users`: 새 사용자 등록
+   - `PUT /api/users/{username}`: 사용자 정보 업데이트
 
-2. **사용자 관리 (`/users`)**
-   - `GET /users`: 모든 사용자 목록 조회
-   - `POST /users`: 새 사용자 등록
-   - `PUT /users/{username}`: 사용자 정보 업데이트
+2. **출석 데이터 관리 (`/api/attendance`)**
+   - `GET /api/attendance/date/{date}`: 특정 날짜의 모든 사용자 출석 현황 조회
+   - `GET /api/attendance/user/{username}`: 특정 사용자의 전체 출석 현황 조회
+   - `GET /api/attendance/stats`: 출석률, 순위 등 통계 데이터 조회
+   - `POST /api/attendance/refresh`: 출석 데이터 수동 갱신
 
 #### 스케줄러
 - 1시간 간격으로 출석 데이터 자동 갱신
