@@ -6,7 +6,7 @@ from app.database import Base
 
 class Attendance(Base):
     """출석 모델"""
-    __tablename__ = "github_commits"
+    __tablename__ = "attendance"
 
     id = Column(Integer, primary_key=True, index=True)
     github_id = Column(String, nullable=False, index=True)  # 사용자의 GitHub ID (e.g. junho85)
