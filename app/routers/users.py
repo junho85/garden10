@@ -53,11 +53,26 @@ async def get_users(db: Session = Depends(get_db)):
     return users
 
 
-# 사용자 조회
+# 사용자 ID로 조회
 @router.get("/users/{user_id}", response_model=UserResponse, tags=["users"])
 async def get_user(user_id: int, db: Session = Depends(get_db)):
     """특정 ID의 사용자를 조회합니다."""
     user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="사용자를 찾을 수 없습니다."
+        )
+    
+    user.github_profile_url = f"https://avatars.githubusercontent.com/{user.github_id}"
+    return user
+
+
+# 사용자 GitHub ID로 조회
+@router.get("/users/github/{github_id}", response_model=UserResponse, tags=["users"])
+async def get_user_by_github_id(github_id: str, db: Session = Depends(get_db)):
+    """GitHub ID로 사용자를 조회합니다."""
+    user = db.query(User).filter(User.github_id == github_id).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
