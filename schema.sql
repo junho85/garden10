@@ -27,6 +27,7 @@ CREATE TABLE attendance
     id              SERIAL PRIMARY KEY,
     github_id       VARCHAR(255) NOT NULL,
     attendance_date DATE         NOT NULL,
+    commit_count    INTEGER      DEFAULT 0,
     is_attended     BOOLEAN                  DEFAULT FALSE,
     created_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
