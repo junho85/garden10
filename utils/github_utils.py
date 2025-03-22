@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from psycopg2.extras import execute_values
 
 
-def get_commit_history(username, start_date, end_date, page=1, per_page=30, github_token=None):
+def get_commit_history(username, start_date, end_date, page=1, per_page=100, github_token=None):
     # TODO API 로 확인되고 나면 여기 코드는 제거
     # .env 파일에서 환경변수를 로드
     # load_dotenv()
@@ -58,7 +58,9 @@ def get_db_connection():
         dbname=os.getenv("DB_NAME"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
-        port=os.getenv("DB_PORT", 5432)
+        port=os.getenv("DB_PORT", 5432),
+        sslmode="require",
+        gssencmode="disable",
     )
 
 
@@ -115,7 +117,7 @@ def main():
     common_github_token = os.getenv("GITHUB_TOKEN")
 
     start_date = "2025-03-10"
-    end_date = "2025-03-18"
+    end_date = "2025-03-21"
 
     # 사용자 목록 DB에서 조회
     users = get_users_from_db()
