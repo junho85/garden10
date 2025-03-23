@@ -2,8 +2,14 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import users
+from app.routers import users, attendance
 import os
+# from app.scheduler import init_scheduler
+import logging
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="정원사들 시즌10")
 
@@ -18,6 +24,19 @@ app.add_middleware(
 
 # 라우터 등록
 app.include_router(users.router, prefix="/api", tags=["users"])
+app.include_router(attendance.router, prefix="/api", tags=["attendance"])
+
+# 앱 시작 이벤트
+# @app.on_event("startup")
+# async def startup_event():
+#     logger.info("애플리케이션 시작")
+#     # 스케줄러 초기화
+#     init_scheduler()
+
+# 앱 종료 이벤트
+# @app.on_event("shutdown")
+# async def shutdown_event():
+#     logger.info("애플리케이션 종료")
 
 # 정적 파일 서빙
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
