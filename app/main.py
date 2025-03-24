@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import users, attendance
+from app.routers import users, attendance, auth
 import os
 # from app.scheduler import init_scheduler
 import logging
@@ -25,6 +25,7 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(users.router, prefix="/api", tags=["users"])
 app.include_router(attendance.router, prefix="/api", tags=["attendance"])
+app.include_router(auth.router, prefix="/api", tags=["auth"])
 
 # 앱 시작 이벤트
 # @app.on_event("startup")

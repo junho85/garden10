@@ -13,6 +13,7 @@ class AppConfig(BaseSettings):
     database: dict
     github: dict
     admin: Optional[dict] = None
+    auth: Optional[dict] = None
 
     @classmethod
     def from_yaml(cls, file_path: str):

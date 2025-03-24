@@ -10,7 +10,18 @@
     <!-- GNB 영역 -->
     <header class="gnb">
         <h1>정원사들 시즌10</h1>
-        <button id="refresh-btn" class="refresh-button">출석부 갱신</button>
+        <div class="header-buttons">
+            <button id="refresh-btn" class="refresh-button">출석부 갱신</button>
+            <div id="auth-container">
+                <!-- 로그인 상태에 따라 동적으로 변경됨 -->
+                <button id="login-btn" class="login-button">GitHub 로그인</button>
+                <div id="user-profile" class="user-profile hidden">
+                    <img id="user-avatar" class="user-avatar" src="" alt="프로필 이미지">
+                    <span id="user-name"></span>
+                    <button id="logout-btn" class="logout-button">로그아웃</button>
+                </div>
+            </div>
+        </div>
     </header>
 
     <!-- Main 영역 -->

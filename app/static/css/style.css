@@ -46,7 +46,13 @@ section {
     font-size: 1.5rem;
 }
 
-.refresh-button {
+.header-buttons {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.refresh-button, .login-button, .logout-button {
     background-color: #3498db;
     color: white;
     border: none;
@@ -55,6 +61,33 @@ section {
     cursor: pointer;
     font-weight: bold;
     transition: background-color 0.3s;
+}
+
+.login-button {
+    background-color: #2ecc71;
+}
+
+.logout-button {
+    background-color: #e74c3c;
+    font-size: 0.8rem;
+    padding: 4px 8px;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid white;
+}
+
+.hidden {
+    display: none !important;
 }
 
 .refresh-button:hover {

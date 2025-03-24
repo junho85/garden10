@@ -1,8 +1,15 @@
 database:
   url: postgresql://myuser:mypassword@localhost:5432/mydatabase
 github:
-  # 공통 GitHub API 토큰 (모든 사용자에게 적용되는 기본값)
+  # 공통 GitHub API 토큰 (모든 사용자의 출석조회에 적용되는 기본값)
   api_token: "your_common_github_token_here"
+  # OAuth 설정. https://github.com/settings/developers 에서 생성
+  oauth:
+    client_id: "your_github_client_id"
+    client_secret: "your_github_client_secret"
+    redirect_uri: "http://localhost:8000/api/auth/callback"
+auth:
+  secret_key: "your_jwt_secret_key_here" # JWT 토큰 생성용 비밀 키. 직접 생성. e.g. openssl rand -hex 32
+  token_expire_minutes: 1440 # 토큰 만료 시간 (24시간)
 admin: # 유저 정보 등록 등 관리자 권한이 필요한 API에 대한 인증 키
   api_key: admin_secret_key_12345
-
