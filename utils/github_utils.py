@@ -117,12 +117,12 @@ def main():
     common_github_token = os.getenv("GITHUB_TOKEN")
 
     start_date = "2025-03-10"
-    end_date = "2025-03-21"
+    end_date = "2025-03-24"
 
     # 사용자 목록 DB에서 조회
     users = get_users_from_db()
 
-    print("출석 응원 메시지 작성해줘. 오늘이 몇일째인지도 알려줘.")
+    print("출석 응원 메시지 작성해줘. 오늘이 몇일째인지도 알려줘. 마크다운을 사용하지 말아줘.")
     print("시작일 :", start_date)
     print("오늘 날짜 :", end_date)
 
