@@ -86,10 +86,13 @@ CREATE TABLE attendance (
    - `PUT /api/users/{user_id}`: 사용자 정보 업데이트 (관리자 권한 필요)
 
 2. **출석 데이터 관리 (`/api/attendance`)**
-   - `GET /api/attendance/date/{date}`: 특정 날짜의 모든 사용자 출석 현황 조회
-   - `GET /api/attendance/user/{username}`: 특정 사용자의 전체 출석 현황 조회
-   - `GET /api/attendance/stats`: 출석률, 순위 등 통계 데이터 조회
-   - `POST /api/attendance/refresh`: 출석 데이터 수동 갱신
+   - `POST /api/attendance/check`: 모든 사용자의 출석 체크를 실행
+   - `POST /api/attendance/check/{github_id}`: 특정 사용자의 출석 체크를 실행
+   - `GET /api/attendance/history/{github_id}`: 특정 사용자의 출석 기록을 조회
+   - `GET /api/attendance/stats`: 출석 통계를 조회
+   - `GET /api/attendance/stats/{date_str}`: 특정 날짜의 출석 통계를 조회
+   - `GET /api/attendance/ranking`: 출석률 순위를 조회
+   - `GET /api/attendance/{date_str}`: 특정 날짜의 출석 현황을 조회
 
 #### 스케줄러
 - 1시간 간격으로 출석 데이터 자동 갱신
