@@ -3,6 +3,7 @@ from datetime import datetime, date
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql import func
 import logging
 
 from app.models.github_commit import GitHubCommit
@@ -85,16 +86,26 @@ async def save_github_commits(db: Session, commits: List[Dict[str, Any]], github
                 commit_date=commit_date
             )
             
-            # 데이터베이스에 저장
-            db.add(db_commit)
+            # 중복 체크: commit_id와 repository로 기존 커밋 레코드가 있는지 확인
+            existing_commit = db.query(GitHubCommit).filter(
+                GitHubCommit.commit_id == commit_id, 
+                GitHubCommit.repository == repository
+            ).first()
+            
+            if existing_commit:
+                # 기존 레코드 업데이트
+                existing_commit.repository = repository
+                existing_commit.message = message
+                existing_commit.commit_url = commit_url
+                existing_commit.commit_date = commit_date
+                existing_commit.updated_at = func.now()
+                logger.info(f"기존 커밋 업데이트: {commit_id} in {repository}")
+            else:
+                # 새 레코드 추가
+                db.add(db_commit)
+                
             db.commit()
             saved_count += 1
-            
-        except IntegrityError:
-            # 중복된 커밋 ID가 있는 경우 무시하고 계속 진행
-            db.rollback()
-            logger.info(f"중복된 커밋 무시: {commit_id} in {repository}")
-            continue
             
         except Exception as e:
             # 기타 오류 처리
