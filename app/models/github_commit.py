@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, Text, UniqueConstraint, Boolean
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -14,6 +14,7 @@ class GitHubCommit(Base):
     message = Column(Text, nullable=False)  # 커밋 메시지
     commit_url = Column(String, nullable=False)  # 커밋 URL (e.g. https://github.com/username/repo-name/commit/a1b2c3d4...)
     commit_date = Column(DateTime(timezone=True), nullable=False)  # 커밋이 이루어진 날짜 및 시간
+    is_private = Column(Boolean, nullable=False, default=False)  # 프라이빗 저장소 여부
     created_at = Column(DateTime(timezone=True), server_default=func.now())  # 생성 시간
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())  # 업데이트 시간
     

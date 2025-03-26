@@ -72,6 +72,9 @@ async def save_github_commits(db: Session, commits: List[Dict[str, Any]], github
             message = commit_node.get("message", "")
             commit_url = commit_data.get("html_url", "")
             
+            # 저장소가 private인지 확인
+            is_private = commit_data.get("repository", {}).get("private", False)
+            
             # 커밋 날짜 파싱
             commit_date_str = commit_node.get("committer", {}).get("date", "")
             commit_date = datetime.fromisoformat(commit_date_str.replace("Z", "+00:00"))
@@ -83,7 +86,8 @@ async def save_github_commits(db: Session, commits: List[Dict[str, Any]], github
                 repository=repository,
                 message=message,
                 commit_url=commit_url,
-                commit_date=commit_date
+                commit_date=commit_date,
+                is_private=is_private
             )
             
             # 중복 체크: commit_id와 repository로 기존 커밋 레코드가 있는지 확인
@@ -98,6 +102,7 @@ async def save_github_commits(db: Session, commits: List[Dict[str, Any]], github
                 existing_commit.message = message
                 existing_commit.commit_url = commit_url
                 existing_commit.commit_date = commit_date
+                existing_commit.is_private = is_private
                 existing_commit.updated_at = func.now()
                 logger.info(f"기존 커밋 업데이트: {commit_id} in {repository}")
             else:

@@ -38,11 +38,12 @@ CREATE TABLE github_commits
 (
     id          SERIAL PRIMARY KEY,
     github_id   VARCHAR(255)             NOT NULL,
-    commit_id   VARCHAR(255)             NOT NULL UNIQUE,
+    commit_id   VARCHAR(255)             NOT NULL,
     repository  VARCHAR(255)             NOT NULL,
     message     TEXT                     NOT NULL,
     commit_url  TEXT                     NOT NULL,
     commit_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_private  BOOLEAN                  NOT NULL DEFAULT FALSE,
     created_at  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     constraint unique_commit

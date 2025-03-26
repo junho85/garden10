@@ -76,17 +76,18 @@ def save_commits_to_db(github_id, commits):
             commit.get("commit", {}).get("message"),
             commit.get("html_url"),
             commit.get("commit", {}).get("author", {}).get("date"),
+            commit.get("repository", {}).get("private", False),
         )
         for commit in commits
     ]
 
     query = """
-        INSERT INTO github_commits (github_id, commit_id, repository, message, commit_url, commit_date)
+        INSERT INTO github_commits (github_id, commit_id, repository, message, commit_url, commit_date, is_private)
         VALUES %s
         ON CONFLICT (commit_id, repository) DO NOTHING;
     """
 
-    execute_values(cursor, query, commit_data, template="(%s, %s, %s, %s, %s, %s)")
+    execute_values(cursor, query, commit_data, template="(%s, %s, %s, %s, %s, %s, %s)")
     conn.commit()
     cursor.close()
     conn.close()
@@ -117,7 +118,7 @@ def main():
     common_github_token = os.getenv("GITHUB_TOKEN")
 
     start_date = "2025-03-10"
-    end_date = "2025-03-24"
+    end_date = "2025-03-26"
 
     # 사용자 목록 DB에서 조회
     users = get_users_from_db()
