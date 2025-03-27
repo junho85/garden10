@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사용자 프로필 - 정원사들 시즌10</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .profile-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .profile-image {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #3498db;
+            margin-right: 30px;
+        }
+
+        .profile-info {
+            flex: 1;
+        }
+
+        .profile-username {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .github-link {
+            display: inline-flex;
+            align-items: center;
+            color: #0366d6;
+            text-decoration: none;
+        }
+
+        .github-link:hover {
+            text-decoration: underline;
+        }
+
+        .stats-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background-color: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 16px;
+            flex: 1;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #586069;
+        }
+
+        .tab-container {
+            margin-bottom: 20px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #e1e4e8;
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-weight: bold;
+            color: #586069;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-button.active {
+            border-bottom: 2px solid #0366d6;
+            color: #0366d6;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .commit-list {
+            margin-top: 20px;
+        }
+
+        .commit {
+            background-color: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .commit-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .commit-repository {
+            font-weight: bold;
+            color: #0366d6;
+        }
+        
+        .private-commit {
+            background-color: #fafbfc;
+            border-left: 3px solid #f6b26b;
+        }
+        
+        .private-label {
+            display: inline-block;
+            background-color: #f6b26b;
+            color: #fff;
+            font-size: 0.7em;
+            padding: 2px 6px;
+            border-radius: 12px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        .commit-date {
+            color: #586069;
+            font-size: 0.9em;
+        }
+
+        .commit-message {
+            padding: 8px 0;
+            white-space: pre-line;
+        }
+
+        .commit-id {
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #586069;
+        }
+
+        .commit-url {
+            display: inline-block;
+            margin-top: 8px;
+            color: #0366d6;
+            text-decoration: none;
+        }
+
+        .commit-url:hover {
+            text-decoration: underline;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            background-color: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 8px 16px;
+            margin: 0 5px;
+            cursor: pointer;
+        }
+
+        .pagination button:hover {
+            background-color: #e1e4e8;
+        }
+
+        .pagination button:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .no-items {
+            text-align: center;
+            padding: 20px;
+            color: #586069;
+        }
+    </style>
+</head>
+<body>
+    <!-- GNB 영역 -->
+    <header class="gnb">
+        <h1>정원사들 시즌10</h1>
+        <div class="header-buttons">
+            <a href="/" class="back-button">메인으로 돌아가기</a>
+            <div id="auth-container">
+                <!-- 로그인 상태에 따라 동적으로 변경됨 -->
+                <button id="login-btn" class="login-button">GitHub 로그인</button>
+                <div id="user-profile" class="user-profile hidden">
+                    <img id="user-avatar" class="user-avatar" src="" alt="프로필 이미지">
+                    <span id="user-name"></span>
+                    <button id="logout-btn" class="logout-button">로그아웃</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main 영역 -->
+    <main>
+        <section class="user-profile-container">
+            <!-- 프로필 헤더 -->
+            <div class="profile-header">
+                <img id="profile-image" class="profile-image" src="" alt="프로필 이미지">
+                <div class="profile-info">
+                    <h2 id="profile-username" class="profile-username"></h2>
+                    <a id="github-link" class="github-link" href="" target="_blank">
+                        GitHub 프로필 보기
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 통계 정보 -->
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div id="total-commits" class="stat-value">-</div>
+                    <div class="stat-label">총 커밋 수</div>
+                </div>
+                <div class="stat-card">
+                    <div id="total-repos" class="stat-value">-</div>
+                    <div class="stat-label">저장소 수</div>
+                </div>
+                <div class="stat-card">
+                    <div id="last-commit" class="stat-value">-</div>
+                    <div class="stat-label">최근 커밋</div>
+                </div>
+            </div>
+            
+            <!-- 탭 컨테이너 -->
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button id="commits-tab" class="tab-button active">커밋 내역</button>
+                    <button id="activity-tab" class="tab-button">활동 내역</button>
+                </div>
+                
+                <!-- 커밋 내역 탭 -->
+                <div id="commits-content" class="tab-content active">
+                    <div id="commits-loading" class="loading">커밋 내역을 불러오는 중...</div>
+                    <div id="no-commits" class="no-items hidden">커밋 내역이 없습니다.</div>
+                    
+                    <div id="commits-container" class="commit-list hidden">
+                        <!-- 커밋 내역이 동적으로 추가됨 -->
+                    </div>
+                    
+                    <div id="commits-pagination" class="pagination">
+                        <button id="commits-prev-page" disabled>이전</button>
+                        <span id="commits-page-info">1 / 1</span>
+                        <button id="commits-next-page" disabled>다음</button>
+                    </div>
+                </div>
+                
+                <!-- 활동 내역 탭 -->
+                <div id="activity-content" class="tab-content">
+                    <div id="activity-loading" class="loading">활동 내역을 불러오는 중...</div>
+                    <div id="no-activity" class="no-items hidden">활동 내역이 없습니다.</div>
+                    
+                    <div id="activity-container" class="hidden">
+                        <!-- 활동 내역이 동적으로 추가됨 -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // URL에서 사용자 ID 가져오기
+            const pathSegments = window.location.pathname.split('/');
+            const githubId = pathSegments[pathSegments.length - 1];
+            
+            if (!githubId) {
+                showError('사용자 ID가 지정되지 않았습니다.');
+                return;
+            }
+            
+            // 사용자 정보 가져오기
+            loadUserProfile(githubId);
+            
+            // 커밋 내역 가져오기
+            loadCommits(githubId, 1);
+            
+            // 인증 상태 확인
+            checkAuthStatus();
+            
+            // 탭 전환 이벤트 리스너
+            document.getElementById('commits-tab').addEventListener('click', function() {
+                setActiveTab('commits');
+            });
+            
+            document.getElementById('activity-tab').addEventListener('click', function() {
+                setActiveTab('activity');
+                // 활동 내역 탭이 클릭되면 데이터 로드
+                if (document.getElementById('activity-container').innerHTML === '') {
+                    loadActivity(githubId);
+                }
+            });
+            
+            // 로그인/로그아웃 버튼 이벤트 리스너
+            document.getElementById('login-btn').addEventListener('click', function() {
+                window.location.href = '/api/auth/login';
+            });
+            
+            document.getElementById('logout-btn').addEventListener('click', function() {
+                window.location.href = '/api/auth/logout';
+            });
+            
+            // 페이지네이션 이벤트 리스너
+            document.getElementById('commits-prev-page').addEventListener('click', function() {
+                const currentPage = parseInt(document.getElementById('commits-page-info').textContent.split(' / ')[0]);
+                if (currentPage > 1) {
+                    loadCommits(githubId, currentPage - 1);
+                }
+            });
+            
+            document.getElementById('commits-next-page').addEventListener('click', function() {
+                const pageInfo = document.getElementById('commits-page-info').textContent.split(' / ');
+                const currentPage = parseInt(pageInfo[0]);
+                const totalPages = parseInt(pageInfo[1]);
+                
+                if (currentPage < totalPages) {
+                    loadCommits(githubId, currentPage + 1);
+                }
+            });
+        });
+        
+        // 사용자 프로필 로드
+        function loadUserProfile(githubId) {
+            fetch(`/api/users/github/${githubId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('사용자를 찾을 수 없습니다.');
+                    }
+                    return response.json();
+                })
+                .then(user => {
+                    // 프로필 정보 설정
+                    document.getElementById('profile-username').textContent = user.github_id;
+                    document.getElementById('profile-image').src = user.github_profile_url;
+                    document.getElementById('github-link').href = `https://github.com/${user.github_id}`;
+                    
+                    // 페이지 제목 설정
+                    document.title = `${user.github_id} - 정원사들 시즌10`;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showError('사용자 정보를 불러오는 중 오류가 발생했습니다.');
+                });
+        }
+        
+        // 커밋 내역 로드
+        function loadCommits(githubId, page) {
+            const limit = 10;
+            const skip = (page - 1) * limit;
+            
+            // 로딩 표시
+            document.getElementById('commits-loading').classList.remove('hidden');
+            document.getElementById('commits-container').classList.add('hidden');
+            document.getElementById('no-commits').classList.add('hidden');
+            
+            fetch(`/api/github-commits/${githubId}?skip=${skip}&limit=${limit}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('서버 오류');
+                    }
+                    return response.json();
+                })
+                .then(commits => {
+                    // 로딩 숨기기
+                    document.getElementById('commits-loading').classList.add('hidden');
+                    
+                    // 결과가 없는 경우
+                    if (commits.length === 0 && page === 1) {
+                        document.getElementById('no-commits').classList.remove('hidden');
+                        document.getElementById('commits-pagination').classList.add('hidden');
+                        document.getElementById('total-commits').textContent = '0';
+                        return;
+                    }
+                    
+                    // 커밋 내역 표시
+                    displayCommits(commits);
+                    
+                    // 총 커밋 수 업데이트 (임시 - API에서 총 개수를 제공하는 것이 좋음)
+                    const totalCommits = commits.length === limit ? (page * limit) + limit : page * limit;
+                    document.getElementById('total-commits').textContent = totalCommits;
+                    
+                    // 저장소 수 업데이트
+                    const repositories = [...new Set(commits.map(commit => commit.repository))];
+                    document.getElementById('total-repos').textContent = repositories.length;
+                    
+                    // 최근 커밋 날짜 업데이트
+                    if (commits.length > 0) {
+                        const latestCommitDate = new Date(commits[0].commit_date);
+                        const today = new Date();
+                        const diffTime = Math.abs(today - latestCommitDate);
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        document.getElementById('last-commit').textContent = diffDays === 1 ? '오늘' : `${diffDays}일 전`;
+                    }
+                    
+                    // 페이지네이션 업데이트
+                    updateCommitsPagination(page, totalCommits, limit);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('commits-loading').classList.add('hidden');
+                    document.getElementById('no-commits').classList.remove('hidden');
+                    document.getElementById('no-commits').textContent = '커밋 내역을 불러오는 중 오류가 발생했습니다.';
+                });
+        }
+        
+        // 활동 내역 로드 (이 기능은 아직 API가 구현되지 않았으므로 예시임)
+        function loadActivity(githubId) {
+            document.getElementById('activity-loading').classList.remove('hidden');
+            document.getElementById('activity-container').classList.add('hidden');
+            document.getElementById('no-activity').classList.add('hidden');
+            
+            // 아직 구현되지 않은 기능이므로 활동 내역이 없다고 표시
+            setTimeout(() => {
+                document.getElementById('activity-loading').classList.add('hidden');
+                document.getElementById('no-activity').classList.remove('hidden');
+                document.getElementById('no-activity').textContent = '아직 지원되지 않는 기능입니다.';
+            }, 500);
+        }
+        
+        // 커밋 내역 표시
+        function displayCommits(commits) {
+            const container = document.getElementById('commits-container');
+            container.innerHTML = '';
+            
+            commits.forEach(commit => {
+                const commitDate = new Date(commit.commit_date);
+                const formattedDate = commitDate.toLocaleString('ko-KR', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                // private 레포지토리 여부에 따른 클래스 추가
+                const privateClass = commit.is_private ? 'private-commit' : '';
+                
+                const commitElement = document.createElement('div');
+                commitElement.className = `commit ${privateClass}`;
+                
+                // private 레포지토리인 경우 표시
+                const privateLabel = commit.is_private 
+                    ? '<span class="private-label">비공개</span>' 
+                    : '';
+                
+                commitElement.innerHTML = `
+                    <div class="commit-header">
+                        <span class="commit-repository">${commit.repository} ${privateLabel}</span>
+                        <span class="commit-date">${formattedDate}</span>
+                    </div>
+                    <div class="commit-message">${commit.message}</div>
+                    <div class="commit-id">${commit.commit_id.substring(0, 7)}</div>
+                    <a href="${commit.commit_url}" target="_blank" class="commit-url">GitHub에서 보기</a>
+                `;
+                
+                container.appendChild(commitElement);
+            });
+            
+            container.classList.remove('hidden');
+        }
+        
+        // 커밋 페이지네이션 업데이트
+        function updateCommitsPagination(currentPage, totalItems, limit) {
+            const totalPages = Math.ceil(totalItems / limit);
+            document.getElementById('commits-page-info').textContent = `${currentPage} / ${totalPages || 1}`;
+            
+            document.getElementById('commits-prev-page').disabled = currentPage === 1;
+            document.getElementById('commits-next-page').disabled = currentPage >= totalPages;
+            
+            document.getElementById('commits-pagination').classList.remove('hidden');
+        }
+        
+        // 탭 전환
+        function setActiveTab(tabName) {
+            // 모든 탭 버튼 비활성화
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // 모든 탭 콘텐츠 숨기기
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // 선택한 탭 활성화
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            document.getElementById(`${tabName}-content`).classList.add('active');
+        }
+        
+        // 인증 상태 확인
+        function checkAuthStatus() {
+            fetch('/api/auth/me')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('인증 실패');
+                    }
+                    return response.json();
+                })
+                .then(userData => {
+                    // 로그인 성공 상태
+                    document.getElementById('login-btn').classList.add('hidden');
+                    const userProfile = document.getElementById('user-profile');
+                    userProfile.classList.remove('hidden');
+                    
+                    // 사용자 정보 표시
+                    document.getElementById('user-avatar').src = userData.github_profile_url;
+                    document.getElementById('user-name').textContent = userData.github_id;
+                })
+                .catch(error => {
+                    // 로그인 안된 상태
+                    document.getElementById('login-btn').classList.remove('hidden');
+                    document.getElementById('user-profile').classList.add('hidden');
+                });
+        }
+        
+        // 오류 표시
+        function showError(message) {
+            alert(message);
+        }
+    </script>
+</body>
+</html>

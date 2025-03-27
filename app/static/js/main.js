@@ -31,8 +31,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     const userDiv = document.createElement('div');
                     userDiv.className = 'gardener';
                     userDiv.innerHTML = `
-                <img src="${user.github_profile_url}" alt="${user.github_id}" title="${user.github_id}">
-                <span>${user.github_id}</span>
+                <a href="/users/${user.github_id}" title="${user.github_id}님의 프로필 보기">
+                    <img src="${user.github_profile_url}" alt="${user.github_id}" title="${user.github_id}">
+                    <span>${user.github_id}</span>
+                </a>
             `;
                     gardenersList.appendChild(userDiv);
                 });

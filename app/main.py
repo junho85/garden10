@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import users, attendance, auth
+from app.routers import users, attendance, auth, github_commits
 import os
 # from app.scheduler import init_scheduler
 import logging
@@ -26,6 +26,7 @@ app.add_middleware(
 app.include_router(users.router, prefix="/api", tags=["users"])
 app.include_router(attendance.router, prefix="/api", tags=["attendance"])
 app.include_router(auth.router, prefix="/api", tags=["auth"])
+app.include_router(github_commits.router, prefix="/api", tags=["github_commits"])
 
 # 앱 시작 이벤트
 # @app.on_event("startup")
@@ -45,6 +46,12 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     with open(os.path.join("app", "static", "index.html"), "r", encoding="utf-8") as f:
+        return f.read()
+
+@app.get("/users/{github_id}", response_class=HTMLResponse)
+async def read_user_profile():
+    """사용자 프로필 페이지를 제공합니다."""
+    with open(os.path.join("app", "static", "user_profile.html"), "r", encoding="utf-8") as f:
         return f.read()
 
 if __name__ == "__main__":

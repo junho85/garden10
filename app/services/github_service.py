@@ -13,6 +13,28 @@ from app.config import config
 logger = logging.getLogger(__name__)
 
 
+async def get_user_commits(db: Session, github_id: str, skip: int = 0, limit: int = 50) -> List[GitHubCommit]:
+    """
+    특정 사용자의 GitHub 커밋 내역을 데이터베이스에서 조회합니다.
+    
+    Args:
+        db: 데이터베이스 세션
+        github_id: GitHub 사용자 ID
+        skip: 건너뛸 레코드 수
+        limit: 가져올 최대 레코드 수
+    
+    Returns:
+        List[GitHubCommit]: 커밋 목록
+    """
+    return db.query(GitHubCommit) \
+        .filter(GitHubCommit.github_id == github_id) \
+        .order_by(GitHubCommit.commit_date.desc()) \
+        .offset(skip) \
+        .limit(limit) \
+        .all()
+
+
+
 async def get_github_commits(github_id: str, check_date: date, api_token: str) -> List[Dict[str, Any]]:
     """
     GitHub API를 호출하여 특정 사용자의 특정 날짜의 커밋 내역을 조회합니다.
