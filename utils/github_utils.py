@@ -30,8 +30,8 @@ def get_commit_history(username, start_date, end_date, page=1, per_page=100, git
 
     headers = {
         # Commit 검색을 위한 미리보기 헤더
-        "Accept": "application/vnd.github.cloak-preview",
-        "Authorization": f"token {github_token}",
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {github_token}",
     }
 
     response = requests.get(url, headers=headers, params=params)
@@ -118,7 +118,7 @@ def main():
     common_github_token = os.getenv("GITHUB_TOKEN")
 
     start_date = "2025-03-10"
-    end_date = "2025-03-26"
+    end_date = "2025-03-28"
 
     # 사용자 목록 DB에서 조회
     users = get_users_from_db()

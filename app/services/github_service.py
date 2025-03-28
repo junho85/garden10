@@ -56,8 +56,8 @@ async def get_github_commits(github_id: str, check_date: date, api_token: str) -
 
     # 헤더 설정
     headers = {
-        "Accept": "application/vnd.github.cloak-preview",
-        "Authorization": f"token {api_token}"
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {api_token}"
     }
 
     async with httpx.AsyncClient() as client:
