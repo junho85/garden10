@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
     // 초기 데이터 로드
     loadGardeners();
+    loadProgressData();
     checkAuthStatus();
 
     // 로그인 버튼 이벤트 리스너
@@ -16,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // 새로고침 버튼 이벤트 리스너
     document.getElementById('refresh-btn').addEventListener('click', function() {
         loadGardeners();
+        loadProgressData();
         showNotification('출석부가 갱신되었습니다.');
     });
 
@@ -79,5 +81,28 @@ document.addEventListener('DOMContentLoaded', function () {
         setTimeout(() => {
             notification.remove();
         }, 3000);
+    }
+    
+    // 진행률 데이터 로드
+    function loadProgressData() {
+        fetch('/api/attendance/stats')
+            .then(response => response.json())
+            .then(data => {
+                // 진행률 계산
+                const totalDays = data.total_days;           // 총 프로젝트 일수 (설정값)
+                const daysCompleted = data.days_completed;   // 현재까지 진행된 일수
+                const progressPercent = Math.round((daysCompleted / totalDays) * 100);
+                
+                // 진행률 표시
+                document.getElementById('progress-text').textContent = 
+                    `총 ${totalDays}일 중 ${daysCompleted}일 진행 (${progressPercent}%)`;
+                
+                // 프로그레스 바 업데이트
+                document.getElementById('progress-fill').style.width = `${progressPercent}%`;
+            })
+            .catch(error => {
+                console.error('진행률 데이터 로드 중 오류 발생:', error);
+                showNotification('진행률 데이터를 불러오는 중 오류가 발생했습니다.', true);
+            });
     }
 });

@@ -1,6 +1,6 @@
 import yaml
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, Dict
 
 
 # YAML 파일 로더 함수
@@ -9,11 +9,17 @@ def load_yaml_config(file_path: str) -> dict:
         return yaml.safe_load(file)
 
 
+class ProjectConfig(BaseSettings):
+    start_date: str  # YYYY-MM-DD 형식
+    total_days: int
+
+
 class AppConfig(BaseSettings):
     database: dict
     github: dict
     admin: Optional[dict] = None
     auth: Optional[dict] = None
+    project: Optional[Dict] = None
 
     @classmethod
     def from_yaml(cls, file_path: str):

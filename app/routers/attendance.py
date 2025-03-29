@@ -12,6 +12,9 @@ from app.services.attendance_service import (
     get_daily_attendance_stats
 )
 from app.config import config
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["attendance"])
 
@@ -104,23 +107,42 @@ async def get_attendance_stats(
         try:
             start = date.fromisoformat(start_date)
         except ValueError as e:
-            print(e)
+            logger.error(f"Invalid start_date format: {e}")
             raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD")
     else:
-        # 기본 시작일 (예: 프로젝트 시작일)
-        start = date(2025, 3, 1)
+        # 기본 시작일 (프로젝트 설정값 사용)
+        try:
+            project_config = config.project
+            if project_config and "start_date" in project_config:
+                start = date.fromisoformat(project_config["start_date"])
+            else:
+                logger.warning("Project start_date not configured, using default")
+                start = date(2025, 3, 10)  # 기본값
+        except (ValueError, KeyError) as e:
+            logger.error(f"Error parsing project start_date: {e}")
+            start = date(2025, 3, 10)  # 기본값
 
     if end_date:
         try:
             end = date.fromisoformat(end_date)
         except ValueError as e:
-            print(e)
+            logger.error(f"Invalid end_date format: {e}")
             raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD")
     else:
         end = date.today()
 
     # 날짜 범위 생성
     days_completed = (end - start).days + 1
+    
+    # 총 프로젝트 일수 설정
+    total_project_days = 100  # 기본값
+    try:
+        project_config = config.project
+        if project_config and "total_days" in project_config:
+            total_project_days = int(project_config["total_days"])
+    except (ValueError, KeyError) as e:
+        logger.error(f"Error parsing project total_days: {e}")
+    
     date_list = [(start + timedelta(days=i)).isoformat() for i in range(days_completed)]
 
     # 사용자별 출석 데이터 조회
@@ -176,7 +198,8 @@ async def get_attendance_stats(
     return {
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
-        "total_days": len(date_list),
+        "days_completed": days_completed,
+        "total_days": total_project_days,  # 총 프로젝트 일수
         "dates": date_list,
         "users": user_stats,
         "daily_rates": daily_rates,

@@ -13,3 +13,7 @@ auth:
   token_expire_minutes: 1440 # 토큰 만료 시간 (24시간)
 admin: # 유저 정보 등록 등 관리자 권한이 필요한 API에 대한 인증 키
   api_key: admin_secret_key_12345
+project:
+  # 프로젝트 진행 설정
+  start_date: "2025-03-10"  # 시작일 (YYYY-MM-DD 형식)
+  total_days: 100           # 총 진행 일수
