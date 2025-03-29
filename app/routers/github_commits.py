@@ -25,15 +25,15 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
             return None
         
         # JWT 토큰 디코딩
-        jwt_secret = config.auth.get("jwt_secret", "")
-        payload = jwt.decode(token, jwt_secret, algorithms=["HS256"])
-        github_id = payload.get("sub")
+        secret_key = config.auth.get("secret_key")
+        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+        user_id = payload.get("sub")
         
-        if not github_id:
+        if not user_id:
             return None
         
         # 데이터베이스에서 사용자 조회
-        user = db.query(User).filter(User.github_id == github_id).first()
+        user = db.query(User).filter(User.id == user_id).first()
         return user
     except Exception as e:
         logger.error(f"사용자 인증 중 오류 발생: {str(e)}")
@@ -63,7 +63,7 @@ async def read_user_commits(
     """
     try:
         db_commits = await get_user_commits(db, github_id, skip, limit)
-        
+
         # 현재 로그인한 사용자가 조회 대상 사용자와 동일한지 확인
         is_same_user = current_user is not None and current_user.github_id == github_id
         
