@@ -61,11 +61,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 // 사용자 정보 표시
                 document.getElementById('user-avatar').src = userData.github_profile_url;
                 document.getElementById('user-name').textContent = userData.github_id;
+                
+                // 출석부 갱신 버튼 표시 (junho85 유저만)
+                const refreshBtn = document.getElementById('refresh-btn');
+                if (userData.github_id === 'junho85') {
+                    refreshBtn.classList.remove('hidden');
+                } else {
+                    refreshBtn.classList.add('hidden');
+                }
             })
             .catch(error => {
                 // 로그인 안된 상태
                 document.getElementById('login-btn').classList.remove('hidden');
                 document.getElementById('user-profile').classList.add('hidden');
+                document.getElementById('refresh-btn').classList.add('hidden');
             });
     }
 
