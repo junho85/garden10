@@ -209,6 +209,59 @@ main {
     margin-top: 5px;
 }
 
+/* 오늘의 출석 현황 */
+.today-attendance-section {
+    margin-top: 20px;
+}
+
+#today-date {
+    margin-bottom: 10px;
+    font-weight: bold;
+    color: #3498db;
+}
+
+.gardeners-attendance {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.gardener-attendance {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 80px;
+}
+
+.gardener-attendance img {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e0e0e0;
+}
+
+.gardener-attendance.attended img {
+    border-color: #2ecc71;
+}
+
+.gardener-attendance.absent img {
+    border-color: #e74c3c;
+}
+
+.gardener-attendance .attendance-emoji {
+    font-size: 1.5rem;
+    margin-top: 5px;
+}
+
+.gardener-attendance span.name {
+    margin-top: 5px;
+    font-size: 0.8rem;
+    text-align: center;
+    word-break: break-all;
+}
+
 /* 출석부 테이블 */
 .table-container {
     overflow-x: auto;
@@ -262,11 +315,11 @@ tfoot {
         min-width: 80px;
     }
 
-    .gardener {
+    .gardener, .gardener-attendance {
         width: 70px;
     }
 
-    .gardener img {
+    .gardener img, .gardener-attendance img {
         width: 50px;
         height: 50px;
     }
@@ -283,13 +336,17 @@ tfoot {
         flex: 0 0 33.33%;
     }
 
-    .gardener {
+    .gardener, .gardener-attendance {
         width: 60px;
     }
 
-    .gardener img {
+    .gardener img, .gardener-attendance img {
         width: 40px;
         height: 40px;
+    }
+    
+    .gardener-attendance .attendance-emoji {
+        font-size: 1.2rem;
     }
 }
 

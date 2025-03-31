@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // 초기 데이터 로드
     loadGardeners();
     loadProgressData();
+    loadTodayAttendance();
     checkAuthStatus();
 
     // 로그인 버튼 이벤트 리스너
@@ -18,6 +19,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('refresh-btn').addEventListener('click', function() {
         loadGardeners();
         loadProgressData();
+        loadTodayAttendance();
         showNotification('출석부가 갱신되었습니다.');
     });
 
@@ -112,6 +114,56 @@ document.addEventListener('DOMContentLoaded', function () {
             .catch(error => {
                 console.error('진행률 데이터 로드 중 오류 발생:', error);
                 showNotification('진행률 데이터를 불러오는 중 오류가 발생했습니다.', true);
+            });
+    }
+    
+    // 오늘의 출석 현황 로드
+    function loadTodayAttendance() {
+        // 오늘 날짜 가져오기
+        const today = new Date();
+        const formattedDate = today.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+        
+        // 날짜 표시
+        const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+        document.getElementById('today-date').textContent = today.toLocaleDateString('ko-KR', options);
+        
+        // 오늘의 출석 데이터 불러오기
+        fetch(`/api/attendance/${formattedDate}`)
+            .then(response => response.json())
+            .then(attendanceData => {
+                // 사용자 정보 불러오기 (프로필 이미지 등)
+                fetch('/api/users')
+                    .then(response => response.json())
+                    .then(usersData => {
+                        const attendanceContainer = document.getElementById('today-attendance');
+                        attendanceContainer.innerHTML = '';
+                        
+                        // 사용자별 출석 정보 맵 생성
+                        const attendanceMap = {};
+                        attendanceData.forEach(a => {
+                            attendanceMap[a.github_id] = a.is_attended;
+                        });
+                        
+                        // 모든 사용자에 대해 출석 현황 표시
+                        usersData.forEach(user => {
+                            const isAttended = attendanceMap[user.github_id] || false;
+                            const attendanceEmoji = isAttended ? '🌱' : '💤';
+                            const attendanceClass = isAttended ? 'attended' : 'absent';
+                            
+                            const userDiv = document.createElement('div');
+                            userDiv.className = `gardener-attendance ${attendanceClass}`;
+                            userDiv.innerHTML = `
+                                <img src="${user.github_profile_url}" alt="${user.github_id}" title="${user.github_id}">
+                                <div class="attendance-emoji">${attendanceEmoji}</div>
+                                <span class="name">${user.github_id}</span>
+                            `;
+                            attendanceContainer.appendChild(userDiv);
+                        });
+                    });
+            })
+            .catch(error => {
+                console.error('오늘의 출석 현황 로드 중 오류 발생:', error);
+                showNotification('출석 현황 데이터를 불러오는 중 오류가 발생했습니다.', true);
             });
     }
 });
