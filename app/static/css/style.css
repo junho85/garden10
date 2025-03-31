@@ -173,11 +173,58 @@ main {
     justify-content: space-around;
     margin-top: 15px;
     text-align: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.attendance-stats div {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    min-width: 120px;
+}
+
+.attendance-stats h3 {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    color: #7f8c8d;
 }
 
 .attendance-stats p {
-    font-size: 1.1rem;
+    font-size: 1.5rem;
     font-weight: bold;
+    color: #2c3e50;
+}
+
+/* 전체 출석부 섹션 */
+.attendance-table-section {
+    margin-top: 30px;
+}
+
+.attendance-summary {
+    margin-bottom: 20px;
+}
+
+/* 출석부 범례 */
+.attendance-legend {
+    display: flex;
+    gap: 20px;
+    margin-top: 15px;
+    justify-content: center;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.legend-mark {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    text-align: center;
+    line-height: 20px;
 }
 
 /* 오늘의 출석부 */
@@ -272,17 +319,22 @@ table {
     width: 100%;
     border-collapse: collapse;
     min-width: 800px;
+    font-size: 0.9rem;
 }
 
 th, td {
-    padding: 12px 15px;
+    padding: 10px 8px;
     text-align: center;
     border: 1px solid #ddd;
+    position: relative;
 }
 
-thead {
+th {
+    position: sticky;
+    top: 0;
     background-color: #3498db;
     color: white;
+    z-index: 1;
 }
 
 tbody tr:nth-child(even) {
@@ -292,6 +344,89 @@ tbody tr:nth-child(even) {
 tfoot {
     background-color: #ecf0f1;
     font-weight: bold;
+}
+
+.fixed-column {
+    position: sticky;
+    left: 0;
+    background-color: white;
+    z-index: 2;
+}
+
+thead .fixed-column {
+    background-color: #3498db;
+    z-index: 3;
+}
+
+tbody tr:nth-child(even) .fixed-column {
+    background-color: #f2f2f2;
+}
+
+tfoot .fixed-column {
+    background-color: #ecf0f1;
+}
+
+/* 사용자 및 출석 데이터 */
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px;
+    white-space: nowrap;
+}
+
+.user-cell img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+}
+
+.attendance-mark {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+}
+
+.attendance-mark.attended {
+    color: #2ecc71;
+}
+
+.attendance-mark.absent {
+    color: #e74c3c;
+}
+
+.attendance-rate {
+    font-weight: bold;
+}
+
+.user-rank {
+    font-weight: bold;
+    width: 30px;
+    display: inline-block;
+}
+
+.date-header {
+    font-size: 0.8rem;
+    white-space: nowrap;
+    padding: 8px 5px;
+}
+
+.date-cell {
+    min-width: 28px;
+}
+
+.date-short {
+    display: none;
+}
+
+@media (max-width: 1200px) {
+    .date-full {
+        display: none;
+    }
+    .date-short {
+        display: inline;
+    }
 }
 
 /* 차트 영역 */
@@ -323,6 +458,20 @@ tfoot {
         width: 50px;
         height: 50px;
     }
+    
+    .table-container {
+        max-height: 500px;
+    }
+    
+    .user-cell {
+        padding: 2px;
+        gap: 4px;
+    }
+    
+    .user-cell img {
+        width: 20px;
+        height: 20px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -347,6 +496,20 @@ tfoot {
     
     .gardener-attendance .attendance-emoji {
         font-size: 1.2rem;
+    }
+    
+    .attendance-mark {
+        width: 20px;
+        height: 20px;
+        font-size: 0.8rem;
+    }
+    
+    th, td {
+        padding: 6px 4px;
+    }
+    
+    .date-cell {
+        min-width: 24px;
     }
 }
 

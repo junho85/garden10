@@ -54,6 +54,58 @@
             </div>
         </section>
 
+        <!-- 전체 출석부 섹션 -->
+        <section class="attendance-table-section">
+            <h2>전체 출석부</h2>
+            <div class="attendance-summary">
+                <div class="attendance-stats">
+                    <div>
+                        <h3>전체 출석률</h3>
+                        <p id="overall-attendance-rate">0%</p>
+                    </div>
+                    <div>
+                        <h3>총 출석</h3>
+                        <p id="total-present">0</p>
+                    </div>
+                    <div>
+                        <h3>총 미출석</h3>
+                        <p id="total-absent">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="attendance-table">
+                    <thead>
+                        <tr id="dates-header">
+                            <th>순위</th>
+                            <th>사용자</th>
+                            <th>출석률</th>
+                            <!-- 날짜 헤더는 JavaScript로 동적 생성 -->
+                        </tr>
+                    </thead>
+                    <tbody id="attendance-data">
+                        <!-- 출석 데이터는 JavaScript로 동적 생성 -->
+                    </tbody>
+                    <tfoot>
+                        <tr id="daily-rates">
+                            <td colspan="3">일별 출석률</td>
+                            <!-- 일별 출석률은 JavaScript로 동적 생성 -->
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <div class="attendance-legend">
+                <div class="legend-item">
+                    <span class="legend-mark attended">🌱</span>
+                    <span>출석</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-mark absent">❌</span>
+                    <span>미출석</span>
+                </div>
+            </div>
+        </section>
+
     </main>
 
     <script src="/static/js/main.js"></script>
