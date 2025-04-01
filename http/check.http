@@ -1,0 +1,8 @@
+### 모든 사용자 특정 날짜 출석 체크
+POST http://localhost:8000/api/attendance/check?check_date=2025-03-31
+
+### 모든 사용자 특정 날짜 출석 체크
+POST http://localhost:8000/api/attendance/check?check_date=2025-03-16
+
+
+
