@@ -118,13 +118,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 showNotification('진행률 데이터를 불러오는 중 오류가 발생했습니다.', true);
             });
     }
+
+    // 날짜를 "YYYY-MM-DD" 형식으로 변환해 반환하는 함수
+    function getFormattedDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0'); // 월은 0부터 시작하므로 +1
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
     
     // 오늘의 출석 현황 로드
     function loadTodayAttendance() {
         // 오늘 날짜 가져오기
         const today = new Date();
-        const formattedDate = today.toISOString().split('T')[0]; // YYYY-MM-DD 형식
-        
+        const formattedDate = getFormattedDate(today)
+
         // 날짜 표시
         const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
         document.getElementById('today-date').textContent = today.toLocaleDateString('ko-KR', options);
