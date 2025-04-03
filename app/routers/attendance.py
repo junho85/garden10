@@ -9,7 +9,8 @@ from app.services.attendance_service import (
     check_all_attendances,
     check_user_commit_and_save,
     get_user_attendance_history,
-    get_daily_attendance_stats
+    get_daily_attendance_stats,
+    create_attendance_from_commits
 )
 from app.config import config
 import logging
@@ -234,6 +235,22 @@ async def get_attendance_ranking(
 
     stats = await get_attendance_stats(start_date, end_date, db)
     return stats["users"]
+
+
+@router.post("/attendance/create-from-commits")
+async def create_attendance_from_commits_api(check_date: Optional[str] = None, db: Session = Depends(get_db)):
+    """GitHub 커밋 내역을 조회하여 출석 기록을 생성합니다."""
+    date_to_check = None
+    if check_date:
+        try:
+            date_to_check = date.fromisoformat(check_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    else:
+        date_to_check = date.today()
+
+    result = await create_attendance_from_commits(db, date_to_check)
+    return result
 
 
 @router.get("/attendance/{date_str}")
