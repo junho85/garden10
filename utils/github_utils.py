@@ -38,9 +38,9 @@ def get_db_attendance_data(github_id, start_date, end_date):
     return attendance_data
 
 
-def get_commit_history_from_db(github_id, start_date, end_date):
+def get_user_attendance_stats(github_id, start_date, end_date):
     """
-    DB에서 특정 사용자의 커밋 내역을 조회합니다.
+    특정 사용자의 출석 통계를 계산합니다.
     
     Args:
         github_id: GitHub 사용자 ID
@@ -48,73 +48,42 @@ def get_commit_history_from_db(github_id, start_date, end_date):
         end_date: 종료 날짜 (YYYY-MM-DD 형식)
         
     Returns:
-        list: 커밋 데이터 리스트
+        dict: 출석 통계 정보
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    attendance_data = get_db_attendance_data(github_id, start_date, end_date)
     
-    query = """
-        SELECT commit_id, repository, message, commit_url, commit_date, is_private
-        FROM github_commits
-        WHERE github_id = %s AND DATE(commit_date) BETWEEN %s AND %s
-        ORDER BY commit_date DESC
-    """
+    if not attendance_data:
+        return {
+            "github_id": github_id,
+            "total_days": 0,
+            "attended_days": 0,
+            "attendance_rate": 0,
+            "total_commits": 0,
+            "attendance_by_date": {}
+        }
     
-    cursor.execute(query, (github_id, start_date, end_date))
-    commit_data = cursor.fetchall()
+    total_days = len(attendance_data)
+    attended_days = sum(1 for _, _, is_attended in attendance_data if is_attended)
+    total_commits = sum(commit_count for _, commit_count, _ in attendance_data)
+    attendance_rate = round(attended_days / total_days * 100, 1) if total_days > 0 else 0
     
-    cursor.close()
-    conn.close()
-    
-    # 커밋 데이터를 GitHub API 형식과 유사하게 변환
-    commits = []
-    for commit in commit_data:
-        commit_id, repository, message, commit_url, commit_date, is_private = commit
-        commits.append({
-            "sha": commit_id,
-            "repository": {"full_name": repository, "private": is_private},
-            "commit": {
-                "message": message,
-                "author": {"date": commit_date.isoformat()}
-            },
-            "html_url": commit_url,
-        })
-    
-    return commits
-
-
-def count_commits_by_date(commits):
-    """
-    날짜별 커밋 수를 계산합니다.
-    
-    Args:
-        commits: 커밋 데이터 리스트
-        
-    Returns:
-        Counter: 날짜별 커밋 수 카운터
-    """
-    commit_dates = [commit.get("commit", {}).get("author", {}).get("date", "").split("T")[0] for commit in commits]
-    return Counter(commit_dates)
-
-
-def count_attendance_by_date(attendance_data):
-    """
-    날짜별 출석 여부와 커밋 수를 계산합니다.
-    
-    Args:
-        attendance_data: 출석 데이터 리스트 [(날짜, 커밋 수, 출석 여부), ...]
-        
-    Returns:
-        dict: 날짜별 출석 정보
-    """
-    result = {}
-    for data in attendance_data:
-        date_str, commit_count, is_attended = data
-        result[date_str.isoformat()] = {
+    # 날짜별 출석 정보
+    attendance_by_date = {}
+    for date_obj, commit_count, is_attended in attendance_data:
+        date_str = date_obj.isoformat()
+        attendance_by_date[date_str] = {
             "commit_count": commit_count,
             "is_attended": is_attended
         }
-    return result
+    
+    return {
+        "github_id": github_id,
+        "total_days": total_days,
+        "attended_days": attended_days,
+        "attendance_rate": attendance_rate,
+        "total_commits": total_commits,
+        "attendance_by_date": attendance_by_date
+    }
 
 
 def get_db_connection():
@@ -207,29 +176,19 @@ def main():
         github_id = user[0]
 
         try:
-            # DB에서 출석 정보 조회
-            attendance_data = get_db_attendance_data(github_id, start_date, current_date)
+            # 사용자 출석 통계 조회
+            stats = get_user_attendance_stats(github_id, start_date, current_date)
             
-            if not attendance_data:
+            if stats["total_days"] == 0:
                 print(f"{github_id} 유저의 출석 정보를 찾을 수 없습니다.")
                 continue
             
-            # 출석 통계 계산
-            total_days = len(attendance_data)
-            attended_days = sum(1 for _, _, is_attended in attendance_data if is_attended)
-            attendance_rate = round(attended_days / total_days * 100, 1) if total_days > 0 else 0
-            
-            # DB에서 커밋 내역도 조회 (상세 정보 표시 목적)
-            commits = get_commit_history_from_db(github_id, start_date, current_date)
-            total_commits = len(commits)
-            
             print(f"\n{github_id} 유저 출석 현황:")
-            print(f"총 출석 일수: {attended_days}/{total_days}일 (출석률: {attendance_rate}%)")
-            print(f"총 커밋 수: {total_commits}개")
+            print(f"총 출석 일수: {stats['attended_days']}/{stats['total_days']}일 (출석률: {stats['attendance_rate']}%)")
+            print(f"총 커밋 수: {stats['total_commits']}개")
             
             # 날짜별 출석 정보 출력
-            attendance_by_date = count_attendance_by_date(attendance_data)
-            for date_str, info in sorted(attendance_by_date.items()):
+            for date_str, info in sorted(stats["attendance_by_date"].items()):
                 status = "✅ 출석" if info["is_attended"] else "❌ 미출석"
                 print(f"{date_str}: {status} (커밋 {info['commit_count']}개)")
                 
