@@ -71,37 +71,16 @@
             color: #586069;
         }
 
-        .tab-container {
-            margin-bottom: 20px;
+        .section-container {
+            margin-bottom: 30px;
         }
-
-        .tab-buttons {
-            display: flex;
+        
+        .section-container h3 {
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
             border-bottom: 1px solid #e1e4e8;
-            margin-bottom: 20px;
-        }
-
-        .tab-button {
-            padding: 10px 20px;
-            border: none;
-            background: none;
-            cursor: pointer;
-            font-weight: bold;
-            color: #586069;
-            border-bottom: 2px solid transparent;
-        }
-
-        .tab-button.active {
-            border-bottom: 2px solid #0366d6;
-            color: #0366d6;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
+            color: #24292e;
         }
 
         .commit-list {
@@ -254,37 +233,20 @@
                 </div>
             </div>
             
-            <!-- 탭 컨테이너 -->
-            <div class="tab-container">
-                <div class="tab-buttons">
-                    <button id="commits-tab" class="tab-button active">커밋 내역</button>
-                    <button id="activity-tab" class="tab-button">활동 내역</button>
+            <!-- 커밋 내역 -->
+            <div class="section-container">
+                <h3>커밋 내역</h3>
+                <div id="commits-loading" class="loading">커밋 내역을 불러오는 중...</div>
+                <div id="no-commits" class="no-items hidden">커밋 내역이 없습니다.</div>
+                
+                <div id="commits-container" class="commit-list hidden">
+                    <!-- 커밋 내역이 동적으로 추가됨 -->
                 </div>
                 
-                <!-- 커밋 내역 탭 -->
-                <div id="commits-content" class="tab-content active">
-                    <div id="commits-loading" class="loading">커밋 내역을 불러오는 중...</div>
-                    <div id="no-commits" class="no-items hidden">커밋 내역이 없습니다.</div>
-                    
-                    <div id="commits-container" class="commit-list hidden">
-                        <!-- 커밋 내역이 동적으로 추가됨 -->
-                    </div>
-                    
-                    <div id="commits-pagination" class="pagination">
-                        <button id="commits-prev-page" disabled>이전</button>
-                        <span id="commits-page-info">1 / 1</span>
-                        <button id="commits-next-page" disabled>다음</button>
-                    </div>
-                </div>
-                
-                <!-- 활동 내역 탭 -->
-                <div id="activity-content" class="tab-content">
-                    <div id="activity-loading" class="loading">활동 내역을 불러오는 중...</div>
-                    <div id="no-activity" class="no-items hidden">활동 내역이 없습니다.</div>
-                    
-                    <div id="activity-container" class="hidden">
-                        <!-- 활동 내역이 동적으로 추가됨 -->
-                    </div>
+                <div id="commits-pagination" class="pagination">
+                    <button id="commits-prev-page" disabled>이전</button>
+                    <span id="commits-page-info">1 / 1</span>
+                    <button id="commits-next-page" disabled>다음</button>
                 </div>
             </div>
         </section>
@@ -310,18 +272,7 @@
             // 인증 상태 확인
             checkAuthStatus();
             
-            // 탭 전환 이벤트 리스너
-            document.getElementById('commits-tab').addEventListener('click', function() {
-                setActiveTab('commits');
-            });
-            
-            document.getElementById('activity-tab').addEventListener('click', function() {
-                setActiveTab('activity');
-                // 활동 내역 탭이 클릭되면 데이터 로드
-                if (document.getElementById('activity-container').innerHTML === '') {
-                    loadActivity(githubId);
-                }
-            });
+            // 탭 관련 코드 제거 (불필요)
             
             // 로그인/로그아웃 버튼 이벤트 리스너
             document.getElementById('login-btn').addEventListener('click', function() {
@@ -464,19 +415,7 @@
                 });
         }
         
-        // 활동 내역 로드 (이 기능은 아직 API가 구현되지 않았으므로 예시임)
-        function loadActivity(githubId) {
-            document.getElementById('activity-loading').classList.remove('hidden');
-            document.getElementById('activity-container').classList.add('hidden');
-            document.getElementById('no-activity').classList.add('hidden');
-            
-            // 아직 구현되지 않은 기능이므로 활동 내역이 없다고 표시
-            setTimeout(() => {
-                document.getElementById('activity-loading').classList.add('hidden');
-                document.getElementById('no-activity').classList.remove('hidden');
-                document.getElementById('no-activity').textContent = '아직 지원되지 않는 기능입니다.';
-            }, 500);
-        }
+        // 활동 내역 관련 코드 제거
         
         // 커밋 내역 표시
         function displayCommits(commits) {
@@ -534,22 +473,7 @@
             document.getElementById('commits-pagination').classList.remove('hidden');
         }
         
-        // 탭 전환
-        function setActiveTab(tabName) {
-            // 모든 탭 버튼 비활성화
-            document.querySelectorAll('.tab-button').forEach(button => {
-                button.classList.remove('active');
-            });
-            
-            // 모든 탭 콘텐츠 숨기기
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            
-            // 선택한 탭 활성화
-            document.getElementById(`${tabName}-tab`).classList.add('active');
-            document.getElementById(`${tabName}-content`).classList.add('active');
-        }
+        // 탭 전환 관련 코드 제거
         
         // 인증 상태 확인
         function checkAuthStatus() {
