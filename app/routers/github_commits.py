@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.database import get_db
-from app.services.github_service import get_user_commits
+from app.services.github_service import get_user_commits, get_user_commits_stats
 from app.models.github_commit import GitHubCommit
 from app.models.user import User
 from datetime import datetime, timedelta
@@ -93,3 +93,41 @@ async def read_user_commits(
     except Exception as e:
         logger.error(f"커밋 조회 중 오류 발생: {str(e)}")
         raise HTTPException(status_code=500, detail="커밋 내역을 조회하는 중 오류가 발생했습니다.")
+
+
+@router.get("/github-commits/{github_id}/stats")
+async def read_user_commits_stats(
+    github_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    특정 사용자의 GitHub 커밋 통계 정보를 조회합니다.
+    
+    Args:
+        github_id: GitHub 사용자 ID
+        db: 데이터베이스 세션
+        
+    Returns:
+        Dict: 커밋 통계 정보 (총 커밋 수, 저장소 수, 가장 최근 커밋 날짜)
+    """
+    try:
+        stats = await get_user_commits_stats(db, github_id)
+        
+        # 최근 커밋 날짜가 있는 경우 ISO 형식으로 변환
+        if stats.get("latest_commit_date"):
+            stats["latest_commit_date"] = stats["latest_commit_date"].isoformat()
+            
+            # 오늘과의 날짜 차이 계산
+            latest_date = datetime.fromisoformat(stats["latest_commit_date"].split("T")[0])
+            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            days_diff = (today - latest_date).days
+            
+            stats["days_since_last_commit"] = days_diff
+        else:
+            stats["days_since_last_commit"] = None
+            
+        return stats
+    
+    except Exception as e:
+        logger.error(f"커밋 통계 조회 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail="커밋 통계를 조회하는 중 오류가 발생했습니다.")

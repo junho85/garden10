@@ -34,6 +34,46 @@ async def get_user_commits(db: Session, github_id: str, skip: int = 0, limit: in
         .all()
 
 
+async def get_user_commits_stats(db: Session, github_id: str) -> Dict[str, Any]:
+    """
+    특정 사용자의 GitHub 커밋 통계를 데이터베이스에서 조회합니다.
+    
+    Args:
+        db: 데이터베이스 세션
+        github_id: GitHub 사용자 ID
+    
+    Returns:
+        Dict: 커밋 통계 정보 (총 커밋 수, 저장소 수, 가장 최근 커밋 날짜)
+    """
+    # 총 커밋 수 조회
+    total_commits = db.query(func.count(GitHubCommit.id)) \
+        .filter(GitHubCommit.github_id == github_id) \
+        .scalar() or 0
+    
+    # 저장소 수 조회 (중복 제거)
+    repositories = db.query(GitHubCommit.repository) \
+        .filter(GitHubCommit.github_id == github_id) \
+        .distinct() \
+        .all()
+    total_repos = len(repositories)
+    
+    # 가장 최근 커밋 날짜 조회
+    latest_commit = db.query(GitHubCommit) \
+        .filter(GitHubCommit.github_id == github_id) \
+        .order_by(GitHubCommit.commit_date.desc()) \
+        .first()
+    
+    latest_commit_date = None
+    if latest_commit:
+        latest_commit_date = latest_commit.commit_date
+    
+    return {
+        "total_commits": total_commits,
+        "total_repos": total_repos,
+        "latest_commit_date": latest_commit_date
+    }
+
+
 
 async def get_github_commits(github_id: str, check_date: date, api_token: str) -> List[Dict[str, Any]]:
     """

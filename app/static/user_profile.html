@@ -385,6 +385,10 @@
             document.getElementById('commits-container').classList.add('hidden');
             document.getElementById('no-commits').classList.add('hidden');
             
+            // 먼저 커밋 통계 정보 가져오기
+            loadCommitStats(githubId);
+            
+            // 커밋 내역 가져오기
             fetch(`/api/github-commits/${githubId}?skip=${skip}&limit=${limit}`)
                 .then(response => {
                     if (!response.ok) {
@@ -400,48 +404,14 @@
                     if (commits.length === 0 && page === 1) {
                         document.getElementById('no-commits').classList.remove('hidden');
                         document.getElementById('commits-pagination').classList.add('hidden');
-                        document.getElementById('total-commits').textContent = '0';
                         return;
                     }
                     
                     // 커밋 내역 표시
                     displayCommits(commits);
                     
-                    // 총 커밋 수 업데이트 (임시 - API에서 총 개수를 제공하는 것이 좋음)
-                    const totalCommits = commits.length === limit ? (page * limit) + limit : page * limit;
-                    document.getElementById('total-commits').textContent = totalCommits;
-                    
-                    // 저장소 수 업데이트
-                    const repositories = [...new Set(commits.map(commit => commit.repository))];
-                    document.getElementById('total-repos').textContent = repositories.length;
-                    
-                    // 최근 커밋 날짜 업데이트
-                    if (commits.length > 0) {
-                        const latestCommitDate = new Date(commits[0].commit_date);
-                        const today = new Date();
-                        
-                        // 날짜만 비교 (시간은 제외)
-                        const latestCommitDateOnly = new Date(latestCommitDate.getFullYear(), latestCommitDate.getMonth(), latestCommitDate.getDate());
-                        const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                        
-                        // 두 날짜 사이의 차이 계산 (일)
-                        const diffTime = Math.abs(todayDateOnly - latestCommitDateOnly);
-                        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                        
-                        // 타임존 차이를 고려하여 날짜 표시
-                        let lastCommitText;
-                        if (diffDays === 0) {
-                            lastCommitText = '오늘';
-                        } else if (diffDays === 1) {
-                            lastCommitText = '어제';
-                        } else {
-                            lastCommitText = `${diffDays}일 전`;
-                        }
-                        
-                        document.getElementById('last-commit').textContent = lastCommitText;
-                    }
-                    
-                    // 페이지네이션 업데이트
+                    // 페이지네이션 업데이트 (전체 커밋 수는 loadCommitStats에서 가져옴)
+                    const totalCommits = parseInt(document.getElementById('total-commits').textContent) || 0;
                     updateCommitsPagination(page, totalCommits, limit);
                 })
                 .catch(error => {
@@ -449,6 +419,48 @@
                     document.getElementById('commits-loading').classList.add('hidden');
                     document.getElementById('no-commits').classList.remove('hidden');
                     document.getElementById('no-commits').textContent = '커밋 내역을 불러오는 중 오류가 발생했습니다.';
+                });
+        }
+        
+        // 커밋 통계 정보 로드
+        function loadCommitStats(githubId) {
+            fetch(`/api/github-commits/${githubId}/stats`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('서버 오류');
+                    }
+                    return response.json();
+                })
+                .then(stats => {
+                    // 총 커밋 수 업데이트
+                    document.getElementById('total-commits').textContent = stats.total_commits;
+                    
+                    // 저장소 수 업데이트
+                    document.getElementById('total-repos').textContent = stats.total_repos;
+                    
+                    // 최근 커밋 날짜 업데이트
+                    if (stats.latest_commit_date) {
+                        // 타임존 차이를 고려하여 날짜 표시
+                        let lastCommitText;
+                        if (stats.days_since_last_commit === 0) {
+                            lastCommitText = '오늘';
+                        } else if (stats.days_since_last_commit === 1) {
+                            lastCommitText = '어제';
+                        } else {
+                            lastCommitText = `${stats.days_since_last_commit}일 전`;
+                        }
+                        
+                        document.getElementById('last-commit').textContent = lastCommitText;
+                    } else {
+                        document.getElementById('last-commit').textContent = '-';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading commit stats:', error);
+                    // 오류 발생 시 기본값 표시
+                    document.getElementById('total-commits').textContent = '-';
+                    document.getElementById('total-repos').textContent = '-';
+                    document.getElementById('last-commit').textContent = '-';
                 });
         }
         
