@@ -1,0 +1,7 @@
+### github rate limit
+GET https://api.github.com/rate_limit
+Accept: application/vnd.github+json
+Authorization: Bearer {{github_token}}
+X-GitHub-Api-Version: 2022-11-28
+
+
