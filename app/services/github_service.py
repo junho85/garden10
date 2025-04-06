@@ -1,5 +1,5 @@
 import httpx
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -13,7 +13,14 @@ from app.config import config
 logger = logging.getLogger(__name__)
 
 
-async def get_user_commits(db: Session, github_id: str, skip: int = 0, limit: int = 50) -> List[GitHubCommit]:
+async def get_user_commits(
+    db: Session, 
+    github_id: str, 
+    skip: int = 0, 
+    limit: int = 50,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None
+) -> List[GitHubCommit]:
     """
     특정 사용자의 GitHub 커밋 내역을 데이터베이스에서 조회합니다.
     
@@ -22,46 +29,86 @@ async def get_user_commits(db: Session, github_id: str, skip: int = 0, limit: in
         github_id: GitHub 사용자 ID
         skip: 건너뛸 레코드 수
         limit: 가져올 최대 레코드 수
+        from_date: 시작 날짜 (이 날짜 이후의 커밋만 조회)
+        to_date: 종료 날짜 (이 날짜 이전의 커밋만 조회)
     
     Returns:
         List[GitHubCommit]: 커밋 목록
     """
-    return db.query(GitHubCommit) \
-        .filter(GitHubCommit.github_id == github_id) \
-        .order_by(GitHubCommit.commit_date.desc()) \
+    query = db.query(GitHubCommit).filter(GitHubCommit.github_id == github_id)
+    
+    # 날짜 범위 필터 적용
+    if from_date:
+        # 시작 시간과 종료 시간 설정 (KST 기준)
+        kst_offset = timedelta(hours=9)  # UTC+9
+        start_datetime = datetime.combine(from_date, datetime.min.time()) - kst_offset
+        query = query.filter(GitHubCommit.commit_date >= start_datetime)
+    
+    if to_date:
+        # 시작 시간과 종료 시간 설정 (KST 기준)
+        kst_offset = timedelta(hours=9)  # UTC+9
+        end_datetime = datetime.combine(to_date, datetime.max.time()) - kst_offset
+        query = query.filter(GitHubCommit.commit_date <= end_datetime)
+    
+    return query.order_by(GitHubCommit.commit_date.desc()) \
         .offset(skip) \
         .limit(limit) \
         .all()
 
 
-async def get_user_commits_stats(db: Session, github_id: str) -> Dict[str, Any]:
+async def get_user_commits_stats(
+    db: Session, 
+    github_id: str,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None
+) -> Dict[str, Any]:
     """
     특정 사용자의 GitHub 커밋 통계를 데이터베이스에서 조회합니다.
     
     Args:
         db: 데이터베이스 세션
         github_id: GitHub 사용자 ID
+        from_date: 시작 날짜 (이 날짜 이후의 커밋만 조회)
+        to_date: 종료 날짜 (이 날짜 이전의 커밋만 조회)
     
     Returns:
         Dict: 커밋 통계 정보 (총 커밋 수, 저장소 수, 가장 최근 커밋 날짜)
     """
+    # 쿼리 생성
+    query = db.query(GitHubCommit).filter(GitHubCommit.github_id == github_id)
+    
+    # 날짜 범위 필터 적용
+    if from_date:
+        # 시작 시간과 종료 시간 설정 (KST 기준)
+        kst_offset = timedelta(hours=9)  # UTC+9
+        start_datetime = datetime.combine(from_date, datetime.min.time()) - kst_offset
+        query = query.filter(GitHubCommit.commit_date >= start_datetime)
+    
+    if to_date:
+        # 시작 시간과 종료 시간 설정 (KST 기준)
+        kst_offset = timedelta(hours=9)  # UTC+9
+        end_datetime = datetime.combine(to_date, datetime.max.time()) - kst_offset
+        query = query.filter(GitHubCommit.commit_date <= end_datetime)
+    
     # 총 커밋 수 조회
-    total_commits = db.query(func.count(GitHubCommit.id)) \
-        .filter(GitHubCommit.github_id == github_id) \
-        .scalar() or 0
+    total_commits = query.count()
     
     # 저장소 수 조회 (중복 제거)
-    repositories = db.query(GitHubCommit.repository) \
-        .filter(GitHubCommit.github_id == github_id) \
-        .distinct() \
-        .all()
+    repos_query = db.query(GitHubCommit.repository).filter(GitHubCommit.github_id == github_id)
+    if from_date:
+        kst_offset = timedelta(hours=9)  # UTC+9
+        start_datetime = datetime.combine(from_date, datetime.min.time()) - kst_offset
+        repos_query = repos_query.filter(GitHubCommit.commit_date >= start_datetime)
+    if to_date:
+        kst_offset = timedelta(hours=9)  # UTC+9
+        end_datetime = datetime.combine(to_date, datetime.max.time()) - kst_offset
+        repos_query = repos_query.filter(GitHubCommit.commit_date <= end_datetime)
+    
+    repositories = repos_query.distinct().all()
     total_repos = len(repositories)
     
     # 가장 최근 커밋 날짜 조회
-    latest_commit = db.query(GitHubCommit) \
-        .filter(GitHubCommit.github_id == github_id) \
-        .order_by(GitHubCommit.commit_date.desc()) \
-        .first()
+    latest_commit = query.order_by(GitHubCommit.commit_date.desc()).first()
     
     latest_commit_date = None
     if latest_commit:

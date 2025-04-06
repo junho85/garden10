@@ -336,7 +336,7 @@
             document.getElementById('commits-container').classList.add('hidden');
             document.getElementById('no-commits').classList.add('hidden');
             
-            // 먼저 커밋 통계 정보 가져오기
+            // 먼저 커밋 통계 정보 가져오기 (총 커밋 수 정보 등)
             loadCommitStats(githubId);
             
             // 커밋 내역 가져오기
@@ -347,9 +347,12 @@
                     }
                     return response.json();
                 })
-                .then(commits => {
+                .then(data => {
                     // 로딩 숨기기
                     document.getElementById('commits-loading').classList.add('hidden');
+                    
+                    const commits = data.commits;
+                    const pagination = data.pagination;
                     
                     // 결과가 없는 경우
                     if (commits.length === 0 && page === 1) {
@@ -361,9 +364,13 @@
                     // 커밋 내역 표시
                     displayCommits(commits);
                     
-                    // 페이지네이션 업데이트 (전체 커밋 수는 loadCommitStats에서 가져옴)
-                    const totalCommits = parseInt(document.getElementById('total-commits').textContent) || 0;
-                    updateCommitsPagination(page, totalCommits, limit);
+                    // API에서 제공한 페이지네이션 정보로 업데이트
+                    updateCommitsPagination(
+                        pagination.page, 
+                        pagination.total, 
+                        pagination.limit, 
+                        pagination.pages
+                    );
                 })
                 .catch(error => {
                     console.error('Error:', error);
@@ -388,6 +395,18 @@
                     
                     // 저장소 수 업데이트
                     document.getElementById('total-repos').textContent = stats.total_repos;
+                    
+                    // 통계 기간 정보 표시 (선택적)
+                    if (stats.from_date && stats.to_date) {
+                        const fromDate = new Date(stats.from_date);
+                        const toDate = new Date(stats.to_date);
+                        
+                        const options = { month: '2-digit', day: '2-digit' };
+                        const periodText = `${fromDate.toLocaleDateString('ko-KR', options)} ~ ${toDate.toLocaleDateString('ko-KR', options)} 기간`;
+                        
+                        // 여기에 기간 정보를 표시할 수 있음 (선택적)
+                        // document.getElementById('commit-period').textContent = periodText;
+                    }
                     
                     // 최근 커밋 날짜 업데이트
                     if (stats.latest_commit_date) {
@@ -463,14 +482,21 @@
         }
         
         // 커밋 페이지네이션 업데이트
-        function updateCommitsPagination(currentPage, totalItems, limit) {
-            const totalPages = Math.ceil(totalItems / limit);
-            document.getElementById('commits-page-info').textContent = `${currentPage} / ${totalPages || 1}`;
+        function updateCommitsPagination(currentPage, totalItems, limit, totalPages) {
+            // totalPages가 제공되지 않은 경우 계산
+            totalPages = totalPages || Math.ceil(totalItems / limit) || 1;
             
-            document.getElementById('commits-prev-page').disabled = currentPage === 1;
+            document.getElementById('commits-page-info').textContent = `${currentPage} / ${totalPages}`;
+            
+            document.getElementById('commits-prev-page').disabled = currentPage <= 1;
             document.getElementById('commits-next-page').disabled = currentPage >= totalPages;
             
-            document.getElementById('commits-pagination').classList.remove('hidden');
+            // 페이지네이션 버튼 표시
+            if (totalPages > 1) {
+                document.getElementById('commits-pagination').classList.remove('hidden');
+            } else {
+                document.getElementById('commits-pagination').classList.add('hidden');
+            }
         }
         
         // 탭 전환 관련 코드 제거

@@ -5,7 +5,7 @@ from app.database import get_db
 from app.services.github_service import get_user_commits, get_user_commits_stats
 from app.models.github_commit import GitHubCommit
 from app.models.user import User
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import logging
 import jwt
 from app.config import config
@@ -40,11 +40,13 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
         return None
 
 
-@router.get("/github-commits/{github_id}", response_model=List[dict])
+@router.get("/github-commits/{github_id}", response_model=dict)
 async def read_user_commits(
     github_id: str, 
     skip: int = Query(0, ge=0), 
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(10, ge=1, le=100),
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user)
 ):
@@ -55,14 +57,62 @@ async def read_user_commits(
         github_id: GitHub 사용자 ID
         skip: 건너뛸 레코드 수 (페이지네이션)
         limit: 가져올 최대 레코드 수 (페이지네이션)
+        from_date: 시작 날짜 (YYYY-MM-DD 형식)
+        to_date: 종료 날짜 (YYYY-MM-DD 형식)
         db: 데이터베이스 세션
         current_user: 현재 로그인한 사용자
     
     Returns:
-        List[dict]: 커밋 내역 목록
+        Dict: 커밋 내역 및 페이지네이션 정보
     """
     try:
-        db_commits = await get_user_commits(db, github_id, skip, limit)
+        # 날짜 파라미터 처리
+        start_date = None
+        end_date = None
+        
+        # 날짜 파라미터가 없는 경우 프로젝트 기간 사용
+        if not from_date and not to_date and config.project:
+            # 프로젝트 시작일 가져오기
+            if "start_date" in config.project:
+                try:
+                    start_date = date.fromisoformat(config.project["start_date"])
+                except ValueError:
+                    logger.warning("프로젝트 시작일 형식이 잘못되었습니다.")
+            
+            # 프로젝트 종료일은 오늘로 설정 (또는 프로젝트 정의된 종료일)
+            end_date = date.today()
+        
+        # 명시적으로 지정된 날짜 범위가 있는 경우
+        if from_date:
+            try:
+                start_date = date.fromisoformat(from_date)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="시작 날짜 형식이 잘못되었습니다. YYYY-MM-DD 형식을 사용하세요.")
+        
+        if to_date:
+            try:
+                end_date = date.fromisoformat(to_date)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="종료 날짜 형식이 잘못되었습니다. YYYY-MM-DD 형식을 사용하세요.")
+        
+        # 총 커밋 수 조회 (페이지네이션용)
+        stats = await get_user_commits_stats(
+            db, 
+            github_id,
+            from_date=start_date,
+            to_date=end_date
+        )
+        total_commits = stats["total_commits"]
+        
+        # 커밋 내역 조회
+        db_commits = await get_user_commits(
+            db, 
+            github_id, 
+            skip=skip, 
+            limit=limit,
+            from_date=start_date,
+            to_date=end_date
+        )
 
         # 현재 로그인한 사용자가 조회 대상 사용자와 동일한지 확인
         is_same_user = current_user is not None and current_user.github_id == github_id
@@ -88,7 +138,19 @@ async def read_user_commits(
                 "updated_at": commit.updated_at
             })
         
-        return commits
+        # 페이지네이션 정보 추가
+        result = {
+            "commits": commits,
+            "pagination": {
+                "total": total_commits,
+                "page": skip // limit + 1 if limit > 0 else 1,
+                "pages": (total_commits + limit - 1) // limit if limit > 0 else 1,
+                "limit": limit,
+                "has_more": skip + limit < total_commits
+            }
+        }
+        
+        return result
     
     except Exception as e:
         logger.error(f"커밋 조회 중 오류 발생: {str(e)}")
@@ -98,6 +160,8 @@ async def read_user_commits(
 @router.get("/github-commits/{github_id}/stats")
 async def read_user_commits_stats(
     github_id: str,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -105,13 +169,54 @@ async def read_user_commits_stats(
     
     Args:
         github_id: GitHub 사용자 ID
+        from_date: 시작 날짜 (YYYY-MM-DD 형식)
+        to_date: 종료 날짜 (YYYY-MM-DD 형식)
         db: 데이터베이스 세션
         
     Returns:
         Dict: 커밋 통계 정보 (총 커밋 수, 저장소 수, 가장 최근 커밋 날짜)
     """
     try:
-        stats = await get_user_commits_stats(db, github_id)
+        # 날짜 파라미터 처리
+        start_date = None
+        end_date = None
+        
+        # 날짜 파라미터가 없는 경우 프로젝트 기간 사용
+        if not from_date and not to_date and config.project:
+            # 프로젝트 시작일 가져오기
+            if "start_date" in config.project:
+                try:
+                    start_date = date.fromisoformat(config.project["start_date"])
+                except ValueError:
+                    logger.warning("프로젝트 시작일 형식이 잘못되었습니다.")
+            
+            # 프로젝트 종료일은 오늘로 설정 (또는 프로젝트 정의된 종료일)
+            end_date = date.today()
+        
+        # 명시적으로 지정된 날짜 범위가 있는 경우
+        if from_date:
+            try:
+                start_date = date.fromisoformat(from_date)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="시작 날짜 형식이 잘못되었습니다. YYYY-MM-DD 형식을 사용하세요.")
+        
+        if to_date:
+            try:
+                end_date = date.fromisoformat(to_date)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="종료 날짜 형식이 잘못되었습니다. YYYY-MM-DD 형식을 사용하세요.")
+        
+        # 통계 정보 조회
+        stats = await get_user_commits_stats(
+            db, 
+            github_id,
+            from_date=start_date,
+            to_date=end_date
+        )
+        
+        # 날짜 범위 정보 추가
+        stats["from_date"] = start_date.isoformat() if start_date else None
+        stats["to_date"] = end_date.isoformat() if end_date else None
         
         # 최근 커밋 날짜가 있는 경우 ISO 형식으로 변환
         if stats.get("latest_commit_date"):
