@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.routers import users, attendance, auth, github_commits
@@ -55,6 +55,10 @@ app.include_router(github_commits.router, prefix="/api", tags=["github_commits"]
 
 # 정적 파일 서빙
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+@app.get("/favicon.ico")
+async def get_favicon():
+    return FileResponse("app/static/favicon.ico")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
