@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 from typing import List, Optional
 from app.database import get_db
 from app.services.github_service import get_user_commits, get_user_commits_stats
@@ -236,3 +237,132 @@ async def read_user_commits_stats(
     except Exception as e:
         logger.error(f"커밋 통계 조회 중 오류 발생: {str(e)}")
         raise HTTPException(status_code=500, detail="커밋 통계를 조회하는 중 오류가 발생했습니다.")
+
+
+@router.get("/github-commits/{github_id}/daily-counts")
+async def read_user_daily_commits(
+    github_id: str,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    특정 사용자의 일별 GitHub 커밋 수를 조회합니다.
+    
+    Args:
+        github_id: GitHub 사용자 ID
+        from_date: 시작 날짜 (YYYY-MM-DD 형식)
+        to_date: 종료 날짜 (YYYY-MM-DD 형식)
+        db: 데이터베이스 세션
+        
+    Returns:
+        Dict: 날짜별 커밋 수 정보
+    """
+    try:
+        # 날짜 파라미터 처리
+        start_date = None
+        end_date = None
+        
+        # 날짜 파라미터가 없는 경우 프로젝트 기간 또는 최근 1년 사용
+        if not from_date and not to_date:
+            # 기본값: 최근 1년 (약 365일)
+            end_date = date.today()
+            start_date = end_date - timedelta(days=365)
+            
+            # 프로젝트 설정 확인
+            if config.project:
+                # 프로젝트 시작일 확인
+                project_start = None
+                if "start_date" in config.project:
+                    try:
+                        project_start = date.fromisoformat(config.project["start_date"])
+                        start_date = project_start  # 프로젝트 시작일 사용
+                    except ValueError:
+                        logger.warning("프로젝트 시작일 형식이 잘못되었습니다.")
+                
+                # 총 일수(total_days)를 이용하여 종료일 계산
+                if project_start and "total_days" in config.project:
+                    try:
+                        total_days = int(config.project["total_days"])
+                        # 시작일 + 총 일수 - 1 = 종료일
+                        end_date = project_start + timedelta(days=total_days - 1)
+                    except (ValueError, TypeError):
+                        logger.warning("프로젝트 총 일수(total_days) 형식이 잘못되었습니다.")
+                        
+                # total_days 없이 직접 종료일이 설정된 경우
+                elif "end_date" in config.project:
+                    try:
+                        project_end = date.fromisoformat(config.project["end_date"])
+                        end_date = project_end
+                    except ValueError:
+                        logger.warning("프로젝트 종료일 형식이 잘못되었습니다.")
+        
+        # 명시적으로 지정된 날짜 범위가 있는 경우
+        if from_date:
+            try:
+                start_date = date.fromisoformat(from_date)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="시작 날짜 형식이 잘못되었습니다. YYYY-MM-DD 형식을 사용하세요.")
+        
+        if to_date:
+            try:
+                end_date = date.fromisoformat(to_date)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="종료 날짜 형식이 잘못되었습니다. YYYY-MM-DD 형식을 사용하세요.")
+                
+        # 날짜 범위 체크
+        if start_date and end_date and start_date > end_date:
+            raise HTTPException(status_code=400, detail="시작 날짜가 종료 날짜보다 늦습니다.")
+            
+        # 일별 커밋 수 쿼리 생성
+        query = db.query(
+            func.date(func.timezone('Asia/Seoul', GitHubCommit.commit_date)).label('commit_date'),
+            func.count().label('count')
+        ).filter(
+            GitHubCommit.github_id == github_id
+        ).group_by(
+            func.date(func.timezone('Asia/Seoul', GitHubCommit.commit_date))
+        ).order_by(
+            func.date(func.timezone('Asia/Seoul', GitHubCommit.commit_date))
+        )
+        
+        # 시간 보정 (KST 기준)
+        kst_offset = timedelta(hours=9)  # UTC+9
+        
+        # 날짜 필터 적용
+        if start_date:
+            start_datetime = datetime.combine(start_date, datetime.min.time()) - kst_offset
+            query = query.filter(GitHubCommit.commit_date >= start_datetime)
+            
+        if end_date:
+            end_datetime = datetime.combine(end_date, datetime.max.time()) - kst_offset
+            query = query.filter(GitHubCommit.commit_date <= end_datetime)
+            
+        # 쿼리 실행
+        results = query.all()
+        
+        # 결과를 딕셔너리로 변환
+        daily_commits = {}
+        
+        # 날짜 범위 내의 모든 날짜에 대해 빈 데이터 생성 (비어있는 날짜도 0으로 표시)
+        if start_date and end_date:
+            current_date = start_date
+            while current_date <= end_date:
+                daily_commits[current_date.isoformat()] = 0
+                current_date += timedelta(days=1)
+        
+        # 실제 데이터 채우기
+        for result in results:
+            date_str = result.commit_date.isoformat()
+            daily_commits[date_str] = result.count
+            
+        return {
+            "github_id": github_id,
+            "from_date": start_date.isoformat() if start_date else None,
+            "to_date": end_date.isoformat() if end_date else None,
+            "daily_commits": daily_commits
+        }
+        
+    except Exception as e:
+        logger.error(f"일별 커밋 수 조회 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail="일별 커밋 수를 조회하는 중 오류가 발생했습니다.")

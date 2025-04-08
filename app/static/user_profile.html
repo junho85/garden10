@@ -183,6 +183,94 @@
             padding: 20px;
             color: #586069;
         }
+        
+        /* 커밋 히트맵 스타일 */
+        .commits-heatmap-wrapper {
+            padding: 20px 0;
+            overflow-x: auto;
+            max-width: 100%;
+        }
+        
+        .commits-heatmap {
+            display: grid;
+            grid-template-rows: repeat(7, 15px); /* 7일(일~토) */
+            grid-template-columns: 30px repeat(53, 15px); /* 요일 레이블 + 최대 53주 */
+            gap: 3px;
+            margin-bottom: 10px;
+        }
+        
+        .month-labels {
+            display: grid;
+            grid-template-columns: 30px repeat(53, 15px); /* 빈 셀 + 최대 53주 */
+            gap: 3px;
+            height: 20px;
+            margin-bottom: 5px;
+        }
+        
+        .month-label {
+            font-size: 12px;
+            color: #586069;
+            text-align: center;
+            white-space: nowrap;
+            overflow: visible;
+            min-width: 30px;
+        }
+        
+        .heatmap-cell {
+            width: 15px;
+            height: 15px;
+            border-radius: 2px;
+            background-color: #ebedf0;
+        }
+        
+        .day-label {
+            font-size: 12px;
+            color: #586069;
+            text-align: right;
+            padding-right: 5px;
+            height: 15px;
+            line-height: 15px;
+        }
+        
+        .level-0 { background-color: #ebedf0; }
+        .level-1 { background-color: #9be9a8; }
+        .level-2 { background-color: #40c463; }
+        .level-3 { background-color: #30a14e; }
+        .level-4 { background-color: #216e39; }
+
+        .tooltip {
+            position: absolute;
+            background-color: #24292e;
+            color: #ffffff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .commits-legend {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-top: 5px;
+            font-size: 12px;
+            color: #586069;
+        }
+        
+        .commits-legend span {
+            margin-right: 5px;
+        }
+        
+        .legend-item {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            margin: 0 2px;
+        }
     </style>
 </head>
 <body>
@@ -233,6 +321,15 @@
                 </div>
             </div>
             
+            <!-- 커밋 그래프 영역 -->
+            <div class="section-container">
+                <h3>커밋 히트맵</h3>
+                <div id="commits-heatmap-loading" class="loading">커밋 데이터 로딩 중...</div>
+                <div id="commits-heatmap-container" class="hidden">
+                    <div id="commits-heatmap"></div>
+                </div>
+            </div>
+            
             <!-- 커밋 내역 -->
             <div class="section-container">
                 <h3>커밋 내역</h3>
@@ -269,10 +366,11 @@
             // 커밋 내역 가져오기
             loadCommits(githubId, 1);
             
+            // 커밋 히트맵 데이터 가져오기
+            loadCommitsHeatmap(githubId);
+            
             // 인증 상태 확인
             checkAuthStatus();
-            
-            // 탭 관련 코드 제거 (불필요)
             
             // 로그인/로그아웃 버튼 이벤트 리스너
             document.getElementById('login-btn').addEventListener('click', function() {
@@ -324,6 +422,242 @@
                     console.error('Error:', error);
                     showError('사용자 정보를 불러오는 중 오류가 발생했습니다.');
                 });
+        }
+        
+        // 커밋 히트맵 로드 및 표시
+        function loadCommitsHeatmap(githubId) {
+            // 로딩 표시
+            document.getElementById('commits-heatmap-loading').classList.remove('hidden');
+            document.getElementById('commits-heatmap-container').classList.add('hidden');
+            
+            // 일별 커밋 수 가져오기
+            fetch(`/api/github-commits/${githubId}/daily-counts`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('서버 오류');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // 로딩 숨기기
+                    document.getElementById('commits-heatmap-loading').classList.add('hidden');
+                    document.getElementById('commits-heatmap-container').classList.remove('hidden');
+                    
+                    // 데이터 파싱 및 히트맵 생성
+                    createCommitsHeatmap(data.daily_commits, data.from_date, data.to_date);
+                })
+                .catch(error => {
+                    console.error('Error loading commits heatmap:', error);
+                    document.getElementById('commits-heatmap-loading').classList.add('hidden');
+                    document.getElementById('commits-heatmap-loading').textContent = '커밋 데이터를 불러오는 중 오류가 발생했습니다.';
+                });
+        }
+        
+        // 커밋 히트맵 생성
+        function createCommitsHeatmap(dailyCommits, fromDate, toDate) {
+            const heatmapContainer = document.getElementById('commits-heatmap');
+            heatmapContainer.innerHTML = '';
+            
+            // 툴팁 생성
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+            document.body.appendChild(tooltip);
+            
+            // 히트맵 래퍼 생성
+            const heatmapWrapper = document.createElement('div');
+            heatmapWrapper.className = 'commits-heatmap-wrapper';
+            
+            // 월 레이블 배열
+            const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+            
+            // 시작과 종료 날짜 설정
+            let startDate = new Date(fromDate);
+            const endDate = new Date(toDate);
+            
+            // 첫 주의 일요일로 startDate 조정
+            const startDay = startDate.getDay();
+            if (startDay !== 0) {
+                startDate.setDate(startDate.getDate() - startDay);
+            }
+            
+            // 주 수 계산
+            const totalDays = Math.round((endDate - startDate) / (24 * 60 * 60 * 1000));
+            const weeksCount = Math.ceil(totalDays / 7);
+            
+            // 월 레이블 컨테이너 생성
+            const monthLabelsContainer = document.createElement('div');
+            monthLabelsContainer.className = 'month-labels';
+            
+            // 첫 빈 셀 추가
+            const emptyMonthCell = document.createElement('div');
+            monthLabelsContainer.appendChild(emptyMonthCell);
+            
+            // 월 레이블 생성 - 짧은 이름 배열 사용
+            const shortMonthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+            let currentMonth = -1;
+            let monthStartWeek = 0;
+            
+            for (let week = 0; week < weeksCount; week++) {
+                const weekDate = new Date(startDate);
+                weekDate.setDate(startDate.getDate() + (week * 7));
+                
+                const month = weekDate.getMonth();
+                if (month !== currentMonth) {
+                    if (currentMonth !== -1) {
+                        // 이전 월 레이블 추가
+                        const monthLabel = document.createElement('div');
+                        monthLabel.className = 'month-label';
+                        monthLabel.textContent = shortMonthNames[currentMonth];
+                        
+                        // 레이블 위치 조정 - 최소 3칸 이상 확보
+                        const colspan = week - monthStartWeek;
+                        
+                        if (colspan >= 3) {
+                            monthLabel.style.gridColumnStart = (monthStartWeek + 2).toString();
+                            monthLabel.style.gridColumnEnd = (week + 2).toString();
+                        } else {
+                            // 너무 좁으면 첫 주 위치에만 표시
+                            monthLabel.style.gridColumnStart = (monthStartWeek + 2).toString();
+                            monthLabel.style.gridColumnEnd = (monthStartWeek + 3).toString();
+                        }
+                        
+                        monthLabelsContainer.appendChild(monthLabel);
+                    }
+                    
+                    currentMonth = month;
+                    monthStartWeek = week;
+                }
+            }
+            
+            // 마지막 월 레이블 추가
+            if (currentMonth !== -1) {
+                const monthLabel = document.createElement('div');
+                monthLabel.className = 'month-label';
+                monthLabel.textContent = shortMonthNames[currentMonth];
+                
+                // 최소 3칸 이상 확보
+                const colspan = weeksCount - monthStartWeek;
+                
+                if (colspan >= 3) {
+                    monthLabel.style.gridColumnStart = (monthStartWeek + 2).toString();
+                    monthLabel.style.gridColumnEnd = (weeksCount + 2).toString();
+                } else {
+                    // 너무 좁으면 첫 주 위치에만 표시
+                    monthLabel.style.gridColumnStart = (monthStartWeek + 2).toString();
+                    monthLabel.style.gridColumnEnd = (monthStartWeek + 3).toString();
+                }
+                
+                monthLabelsContainer.appendChild(monthLabel);
+            }
+            
+            // 히트맵 그리드 생성
+            const heatmapGrid = document.createElement('div');
+            heatmapGrid.className = 'commits-heatmap';
+            
+            // 요일 레이블 추가 (일-토)
+            const dayLabels = ['일', '월', '화', '수', '목', '금', '토'];
+            for (let i = 0; i < 7; i++) {
+                const dayLabel = document.createElement('div');
+                dayLabel.className = 'day-label';
+                dayLabel.textContent = i % 2 === 0 ? dayLabels[i] : '';  // 간격을 두고 요일 표시
+                dayLabel.style.gridRow = (i + 1).toString();
+                dayLabel.style.gridColumn = "1";
+                heatmapGrid.appendChild(dayLabel);
+            }
+            
+            // 날짜 셀 생성 - 요일별로 행, 주별로 열 생성
+            for (let week = 0; week < weeksCount; week++) {  // 열: 각 주 (최대 53주)
+                for (let day = 0; day < 7; day++) {  // 행: 각 요일 (0=일요일, 1=월요일, ...)
+                    const date = new Date(startDate);
+                    // 각 요일에 맞는 날짜 계산
+                    date.setDate(startDate.getDate() + (week * 7) + day);
+                    
+                    // 날짜 범위를 확인하여 적절히 처리
+                    if (date < new Date(fromDate)) {
+                        // 시작일 이전은 빈 셀로 처리
+                        const emptyCell = document.createElement('div');
+                        emptyCell.className = 'heatmap-cell';
+                        emptyCell.style.visibility = 'hidden';
+                        emptyCell.style.gridRow = (day + 1).toString();
+                        emptyCell.style.gridColumn = (week + 2).toString();
+                        heatmapGrid.appendChild(emptyCell);
+                        continue;
+                    } else if (date > endDate) {
+                        // 종료일 이후는 표시하지 않음
+                        const emptyCell = document.createElement('div');
+                        emptyCell.className = 'heatmap-cell';
+                        emptyCell.style.visibility = 'hidden';
+                        emptyCell.style.gridRow = (day + 1).toString();
+                        emptyCell.style.gridColumn = (week + 2).toString();
+                        heatmapGrid.appendChild(emptyCell);
+                        continue;
+                    }
+                    
+                    const dateStr = date.toISOString().split('T')[0];
+                    const commitCount = dailyCommits[dateStr] || 0;
+                    
+                    // 커밋 수에 따른 레벨 결정 (0-4)
+                    let level = 0;
+                    if (commitCount > 0) {
+                        if (commitCount >= 10) level = 4;
+                        else if (commitCount >= 5) level = 3;
+                        else if (commitCount >= 3) level = 2;
+                        else level = 1;
+                    }
+                    
+                    const cell = document.createElement('div');
+                    cell.className = `heatmap-cell level-${level}`;
+                    cell.dataset.date = dateStr;
+                    cell.dataset.count = commitCount;
+                    
+                    // 그리드 위치 지정
+                    cell.style.gridRow = (day + 1).toString();
+                    cell.style.gridColumn = (week + 2).toString();
+                    
+                    // 툴팁 이벤트
+                    cell.addEventListener('mouseover', function(e) {
+                        const date = new Date(this.dataset.date);
+                        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                        const formattedDate = date.toLocaleDateString('ko-KR', options);
+                        const count = this.dataset.count;
+                        
+                        tooltip.textContent = `${formattedDate}: ${count}개의 커밋`;
+                        tooltip.style.opacity = '1';
+                        tooltip.style.left = `${e.pageX + 10}px`;
+                        tooltip.style.top = `${e.pageY + 10}px`;
+                    });
+                    
+                    cell.addEventListener('mousemove', function(e) {
+                        tooltip.style.left = `${e.pageX + 10}px`;
+                        tooltip.style.top = `${e.pageY + 10}px`;
+                    });
+                    
+                    cell.addEventListener('mouseout', function() {
+                        tooltip.style.opacity = '0';
+                    });
+                    
+                    heatmapGrid.appendChild(cell);
+                }
+            }
+            
+            // 범례 추가
+            const legend = document.createElement('div');
+            legend.className = 'commits-legend';
+            legend.innerHTML = `
+                <span>적음</span>
+                <div class="legend-item level-0"></div>
+                <div class="legend-item level-1"></div>
+                <div class="legend-item level-2"></div>
+                <div class="legend-item level-3"></div>
+                <div class="legend-item level-4"></div>
+                <span>많음</span>
+            `;
+            
+            // 히트맵 구성 요소 추가
+            heatmapWrapper.appendChild(monthLabelsContainer);
+            heatmapWrapper.appendChild(heatmapGrid);
+            heatmapWrapper.appendChild(legend);
+            heatmapContainer.appendChild(heatmapWrapper);
         }
         
         // 커밋 내역 로드
@@ -434,8 +768,6 @@
                 });
         }
         
-        // 활동 내역 관련 코드 제거
-        
         // 커밋 내역 표시
         function displayCommits(commits) {
             const container = document.getElementById('commits-container');
@@ -498,8 +830,6 @@
                 document.getElementById('commits-pagination').classList.add('hidden');
             }
         }
-        
-        // 탭 전환 관련 코드 제거
         
         // 인증 상태 확인
         function checkAuthStatus() {
