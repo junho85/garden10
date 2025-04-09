@@ -10,7 +10,10 @@ from app.scheduler import init_scheduler
 import logging
 
 # 로깅 설정
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # 앱 라이프스팬 관리 (최신 FastAPI 권장 방식)

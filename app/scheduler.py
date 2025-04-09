@@ -7,7 +7,10 @@ from apscheduler.triggers.cron import CronTrigger
 from app.database import SessionLocal
 from app.services.attendance_service import check_all_attendances, create_attendance_from_commits
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # 스케줄러 초기화
