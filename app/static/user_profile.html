@@ -237,6 +237,7 @@
         .level-2 { background-color: #40c463; }
         .level-3 { background-color: #30a14e; }
         .level-4 { background-color: #216e39; }
+        .heatmap-cell.selected { border: 2px solid #0366d6; }
 
         .tooltip {
             position: absolute;
@@ -327,6 +328,10 @@
                 <div id="commits-heatmap-loading" class="loading">커밋 데이터 로딩 중...</div>
                 <div id="commits-heatmap-container" class="hidden">
                     <div id="commits-heatmap"></div>
+                    <div id="date-filter-info" class="hidden" style="margin-top: 10px; display: flex; align-items: center; justify-content: flex-end;">
+                        <span id="filtered-date-text" style="margin-right: 10px;"></span>
+                        <button id="reset-date-filter" class="small-button" style="padding: 3px 8px; font-size: 12px; border-radius: 4px; background-color: #f6f8fa; border: 1px solid #e1e4e8; cursor: pointer;">전체 보기</button>
+                    </div>
                 </div>
             </div>
             
@@ -385,7 +390,16 @@
             document.getElementById('commits-prev-page').addEventListener('click', function() {
                 const currentPage = parseInt(document.getElementById('commits-page-info').textContent.split(' / ')[0]);
                 if (currentPage > 1) {
-                    loadCommits(githubId, currentPage - 1);
+                    // 저장된 날짜 필터 사용
+                    const filter = window.currentDateFilter || {};
+                    const selectedCell = document.querySelector('.heatmap-cell.selected');
+                    
+                    // 선택된 날짜가 있으면 loadCommitsForDate 사용, 아니면 loadCommits 사용
+                    if (selectedCell) {
+                        loadCommitsForDate(githubId, currentPage - 1, filter.fromDate);
+                    } else {
+                        loadCommits(githubId, currentPage - 1, filter.fromDate, filter.toDate);
+                    }
                 }
             });
             
@@ -395,8 +409,39 @@
                 const totalPages = parseInt(pageInfo[1]);
                 
                 if (currentPage < totalPages) {
-                    loadCommits(githubId, currentPage + 1);
+                    // 저장된 날짜 필터 사용
+                    const filter = window.currentDateFilter || {};
+                    const selectedCell = document.querySelector('.heatmap-cell.selected');
+                    
+                    // 선택된 날짜가 있으면 loadCommitsForDate 사용, 아니면 loadCommits 사용
+                    if (selectedCell) {
+                        loadCommitsForDate(githubId, currentPage + 1, filter.fromDate);
+                    } else {
+                        loadCommits(githubId, currentPage + 1, filter.fromDate, filter.toDate);
+                    }
                 }
+            });
+            
+            // "전체 보기" 버튼 클릭 이벤트
+            document.getElementById('reset-date-filter').addEventListener('click', function() {
+                // 선택된 셀이 있다면 선택 해제
+                const selectedCell = document.querySelector('.heatmap-cell.selected');
+                if (selectedCell) {
+                    selectedCell.classList.remove('selected');
+                }
+                
+                // 날짜 필터 정보 숨기기
+                document.getElementById('date-filter-info').classList.add('hidden');
+                
+                // 기존 커밋 내역 초기화
+                document.getElementById('commits-container').innerHTML = '';
+                // 리셋
+                document.getElementById('commits-prev-page').disabled = true;
+                document.getElementById('commits-next-page').disabled = true;
+                document.getElementById('commits-page-info').textContent = '1 / 1';
+                
+                // 전체 커밋 내역 다시 로드 (전체 통계 유지)
+                loadCommits(githubId, 1);
             });
         });
         
@@ -455,6 +500,10 @@
         
         // 커밋 히트맵 생성
         function createCommitsHeatmap(dailyCommits, fromDate, toDate) {
+            // URL에서 사용자 ID 가져오기
+            const pathSegments = window.location.pathname.split('/');
+            const githubId = pathSegments[pathSegments.length - 1];
+            
             const heatmapContainer = document.getElementById('commits-heatmap');
             heatmapContainer.innerHTML = '';
             
@@ -636,6 +685,39 @@
                         tooltip.style.opacity = '0';
                     });
                     
+                    // 날짜 셀 클릭 이벤트 - 해당 날짜의 커밋 내역만 표시
+                    cell.addEventListener('click', function() {
+                        const dateStr = this.dataset.date;
+                        const count = this.dataset.count;
+                        
+                        // 이전에 선택된 셀이 있다면 하이라이트 제거
+                        const prevSelected = document.querySelector('.heatmap-cell.selected');
+                        if (prevSelected) {
+                            prevSelected.classList.remove('selected');
+                        }
+                        
+                        // 현재 셀에 하이라이트 추가
+                        this.classList.add('selected');
+                        
+                        // 날짜 필터 정보 표시
+                        const dateFilterInfo = document.getElementById('date-filter-info');
+                        document.getElementById('filtered-date-text').textContent = 
+                            `${dateStr} (${count}개의 커밋)`;
+                        dateFilterInfo.classList.remove('hidden');
+                        
+                        // 해당 날짜의 커밋 불러오기
+                        console.log('클릭한 날짜:', dateStr);
+                        // 기존 커밋 내역 초기화
+                        document.getElementById('commits-container').innerHTML = '';
+                        // 리셋
+                        document.getElementById('commits-prev-page').disabled = true;
+                        document.getElementById('commits-next-page').disabled = true;
+                        document.getElementById('commits-page-info').textContent = '1 / 1';
+                        
+                        // 해당 날짜의 커밋만 로드 (통계는 전체 유지)
+                        loadCommitsForDate(githubId, 1, dateStr);
+                    });
+                    
                     heatmapGrid.appendChild(cell);
                 }
             }
@@ -661,9 +743,29 @@
         }
         
         // 커밋 내역 로드
-        function loadCommits(githubId, page) {
+        // 기존 커밋 로드 함수 - 통계도 함께 업데이트함
+        function loadCommits(githubId, page, fromDate = null, toDate = null) {
             const limit = 10;
             const skip = (page - 1) * limit;
+            
+            // 쿼리 파라미터 구성
+            let queryParams = `skip=${skip}&limit=${limit}`;
+            if (fromDate) {
+                queryParams += `&from_date=${fromDate}`;
+                console.log('시작 날짜 파라미터:', fromDate);
+            }
+            if (toDate) {
+                queryParams += `&to_date=${toDate}`;
+                console.log('종료 날짜 파라미터:', toDate);
+            }
+            
+            // 현재 사용 중인 날짜 필터를 전역 변수로 저장
+            window.currentDateFilter = {
+                fromDate: fromDate,
+                toDate: toDate
+            };
+            
+            console.log('API 요청 URL:', `/api/github-commits/${githubId}?${queryParams}`);
             
             // 로딩 표시
             document.getElementById('commits-loading').classList.remove('hidden');
@@ -671,10 +773,72 @@
             document.getElementById('no-commits').classList.add('hidden');
             
             // 먼저 커밋 통계 정보 가져오기 (총 커밋 수 정보 등)
-            loadCommitStats(githubId);
+            loadCommitStats(githubId, fromDate, toDate);
             
             // 커밋 내역 가져오기
-            fetch(`/api/github-commits/${githubId}?skip=${skip}&limit=${limit}`)
+            fetch(`/api/github-commits/${githubId}?${queryParams}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('서버 오류');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // 로딩 숨기기
+                    document.getElementById('commits-loading').classList.add('hidden');
+                    
+                    const commits = data.commits;
+                    const pagination = data.pagination;
+                    
+                    // 결과가 없는 경우
+                    if (commits.length === 0 && page === 1) {
+                        document.getElementById('no-commits').classList.remove('hidden');
+                        document.getElementById('commits-pagination').classList.add('hidden');
+                        return;
+                    }
+                    
+                    // 커밋 내역 표시
+                    displayCommits(commits);
+                    
+                    // API에서 제공한 페이지네이션 정보로 업데이트
+                    updateCommitsPagination(
+                        pagination.page, 
+                        pagination.total, 
+                        pagination.limit, 
+                        pagination.pages
+                    );
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('commits-loading').classList.add('hidden');
+                    document.getElementById('no-commits').classList.remove('hidden');
+                    document.getElementById('no-commits').textContent = '커밋 내역을 불러오는 중 오류가 발생했습니다.';
+                });
+        }
+        
+        // 날짜 필터용 커밋 로드 함수 - 통계는 업데이트하지 않음
+        function loadCommitsForDate(githubId, page, dateStr) {
+            const limit = 10;
+            const skip = (page - 1) * limit;
+            
+            // 쿼리 파라미터 구성 (날짜는 시작과 종료 모두 동일하게 설정)
+            let queryParams = `skip=${skip}&limit=${limit}&from_date=${dateStr}&to_date=${dateStr}`;
+            
+            // 현재 사용 중인 날짜 필터를 전역 변수로 저장
+            window.currentDateFilter = {
+                fromDate: dateStr,
+                toDate: dateStr
+            };
+            
+            console.log('히트맵 날짜 필터 API 요청 URL:', `/api/github-commits/${githubId}?${queryParams}`);
+            
+            // 로딩 표시
+            document.getElementById('commits-loading').classList.remove('hidden');
+            document.getElementById('commits-container').classList.add('hidden');
+            document.getElementById('no-commits').classList.add('hidden');
+            
+            // 커밋 내역만 가져오기 (통계는 업데이트하지 않음)
+            fetch(`/api/github-commits/${githubId}?${queryParams}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('서버 오류');
@@ -715,8 +879,24 @@
         }
         
         // 커밋 통계 정보 로드
-        function loadCommitStats(githubId) {
-            fetch(`/api/github-commits/${githubId}/stats`)
+        function loadCommitStats(githubId, fromDate = null, toDate = null) {
+            // 쿼리 파라미터 구성
+            let queryParams = '';
+            if (fromDate) {
+                queryParams += `from_date=${fromDate}&`;
+            }
+            if (toDate) {
+                queryParams += `to_date=${toDate}`;
+            }
+            
+            // 마지막 & 제거
+            if (queryParams.endsWith('&')) {
+                queryParams = queryParams.slice(0, -1);
+            }
+            
+            const url = `/api/github-commits/${githubId}/stats${queryParams ? '?' + queryParams : ''}`;
+            console.log('통계 API URL:', url);
+            fetch(url)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('서버 오류');
