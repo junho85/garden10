@@ -262,9 +262,17 @@ main {
 }
 
 #today-date {
-    margin-bottom: 10px;
+    margin-bottom: 5px;
     font-weight: bold;
     color: #3498db;
+}
+
+.last-updated {
+    text-align: center;
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+    color: #888;
+    font-style: italic;
 }
 
 .gardeners-attendance {

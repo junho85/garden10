@@ -148,6 +148,30 @@ document.addEventListener('DOMContentLoaded', function () {
                         const attendanceContainer = document.getElementById('today-attendance');
                         attendanceContainer.innerHTML = '';
                         
+                        // 마지막 갱신 시각 확인
+                        let lastUpdated = null;
+                        attendanceData.forEach(a => {
+                            if (a.updated_at && (!lastUpdated || new Date(a.updated_at) > new Date(lastUpdated))) {
+                                lastUpdated = a.updated_at;
+                            }
+                        });
+                        
+                        // 마지막 갱신 시각 표시 업데이트
+                        if (lastUpdated) {
+                            const lastUpdatedDate = new Date(lastUpdated);
+                            const formattedLastUpdated = lastUpdatedDate.toLocaleString('ko-KR');
+                            
+                            // last-updated 요소가 없으면 생성
+                            let lastUpdatedElement = document.getElementById('last-updated');
+                            if (!lastUpdatedElement) {
+                                lastUpdatedElement = document.createElement('p');
+                                lastUpdatedElement.id = 'last-updated';
+                                lastUpdatedElement.className = 'last-updated';
+                                document.getElementById('today-date').insertAdjacentElement('afterend', lastUpdatedElement);
+                            }
+                            lastUpdatedElement.textContent = `마지막 갱신: ${formattedLastUpdated}`;
+                        }
+                        
                         // 사용자별 출석 정보 맵 생성
                         const attendanceMap = {};
                         attendanceData.forEach(a => {

@@ -265,6 +265,7 @@ async def get_attendance(date_str: str, db: Session = Depends(get_db)):
         Attendance.github_id,
         Attendance.attendance_date,
         Attendance.is_attended,
+        Attendance.updated_at
     ).filter(
         Attendance.attendance_date == check_date
     ).all()
@@ -274,8 +275,9 @@ async def get_attendance(date_str: str, db: Session = Depends(get_db)):
             "github_id": github_id,
             "attendance_date": attendance_date,
             "is_attended": is_attended,
+            "updated_at": updated_at
         }
-        for github_id, attendance_date, is_attended in attendance_data
+        for github_id, attendance_date, is_attended, updated_at in attendance_data
     ]
 
     return result
