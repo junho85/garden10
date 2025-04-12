@@ -187,9 +187,11 @@ document.addEventListener('DOMContentLoaded', function () {
                             const userDiv = document.createElement('div');
                             userDiv.className = `gardener-attendance ${attendanceClass}`;
                             userDiv.innerHTML = `
-                                <img src="${user.github_profile_url}" alt="${user.github_id}" title="${user.github_id}">
-                                <div class="attendance-emoji">${attendanceEmoji}</div>
-                                <span class="name">${user.github_id}</span>
+                                <a href="/users/${user.github_id}" title="${user.github_id}님의 프로필 보기">
+                                    <img src="${user.github_profile_url}" alt="${user.github_id}" title="${user.github_id}">
+                                    <div class="attendance-emoji">${attendanceEmoji}</div>
+                                    <span class="name">${user.github_id}</span>
+                                </a>
                             `;
                             attendanceContainer.appendChild(userDiv);
                         });
