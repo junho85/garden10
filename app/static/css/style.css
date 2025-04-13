@@ -459,6 +459,18 @@ tfoot .fixed-column {
     margin-top: 15px;
 }
 
+/* 일별 출석률 차트 */
+.attendance-chart-section {
+    margin-top: 20px;
+}
+
+.chart-container {
+    width: 100%;
+    height: 300px;
+    margin: 15px 0;
+    position: relative;
+}
+
 /* 반응형 디자인 */
 @media (max-width: 768px) {
     .attendance-stats {

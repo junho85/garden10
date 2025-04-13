@@ -203,6 +203,61 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
     
+    // 일별 출석률 차트 생성
+    function createDailyAttendanceChart(labels, data) {
+        const ctx = document.getElementById('daily-attendance-chart').getContext('2d');
+        
+        // 기존 차트가 있으면 파괴
+        if (window.dailyAttendanceChart) {
+            window.dailyAttendanceChart.destroy();
+        }
+        
+        // 새 차트 생성
+        window.dailyAttendanceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '일별 출석률 (%)',
+                    data: data,
+                    backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'rgba(52, 152, 219, 1)',
+                    pointBorderColor: '#fff',
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `출석률: ${context.raw}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     // 전체 출석부 로드
     function loadFullAttendance() {
         fetch('/api/attendance/stats')
@@ -212,6 +267,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('overall-attendance-rate').textContent = `${data.overall_attendance_rate}%`;
                 document.getElementById('total-present').textContent = data.total_present;
                 document.getElementById('total-absent').textContent = data.total_absent;
+                
+                // 일별 출석률 차트 데이터 준비
+                const chartLabels = data.dates.map(dateStr => {
+                    const date = new Date(dateStr);
+                    const month = date.getMonth() + 1;
+                    const day = date.getDate();
+                    return `${month}/${day}`;
+                });
+                
+                const chartData = data.daily_rates.map(d => d.rate);
+                
+                // 차트 생성
+                createDailyAttendanceChart(chartLabels, chartData);
                 
                 // 날짜 헤더 생성
                 const datesHeader = document.getElementById('dates-header');
