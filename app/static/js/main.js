@@ -257,6 +257,100 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+    
+    // 요일별 출석률 계산 함수
+    function calculateWeekdayAttendanceRates(dates, dailyRates) {
+        // 요일별 데이터 초기화
+        const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+        const weekdayCounts = [0, 0, 0, 0, 0, 0, 0];
+        const weekdayTotals = [0, 0, 0, 0, 0, 0, 0];
+        
+        // 날짜별 출석률 데이터 처리
+        dates.forEach((dateStr, index) => {
+            const date = new Date(dateStr);
+            const dayOfWeek = date.getDay(); // 0(일요일) ~ 6(토요일)
+            weekdayCounts[dayOfWeek]++;
+            weekdayTotals[dayOfWeek] += dailyRates[index].rate;
+        });
+        
+        // 요일별 평균 출석률 계산
+        return weekdays.map((day, index) => {
+            return {
+                day: day,
+                rate: weekdayCounts[index] > 0 ? Math.round(weekdayTotals[index] / weekdayCounts[index]) : 0
+            };
+        });
+    }
+    
+    // 요일별 출석률 차트 생성
+    function createWeekdayAttendanceChart(weekdayData) {
+        const ctx = document.getElementById('weekday-attendance-chart').getContext('2d');
+        
+        // 기존 차트가 있으면 파괴
+        if (window.weekdayAttendanceChart) {
+            window.weekdayAttendanceChart.destroy();
+        }
+        
+        // 색상 배열 정의
+        const backgroundColors = [
+            'rgba(255, 99, 132, 0.7)',   // 일요일 - 빨강
+            'rgba(255, 159, 64, 0.7)',   // 월요일 - 주황
+            'rgba(255, 205, 86, 0.7)',   // 화요일 - 노랑
+            'rgba(75, 192, 192, 0.7)',   // 수요일 - 청록
+            'rgba(54, 162, 235, 0.7)',   // 목요일 - 파랑
+            'rgba(153, 102, 255, 0.7)',  // 금요일 - 보라
+            'rgba(201, 203, 207, 0.7)'   // 토요일 - 회색
+        ];
+        
+        const borderColors = [
+            'rgb(255, 99, 132)',
+            'rgb(255, 159, 64)',
+            'rgb(255, 205, 86)',
+            'rgb(75, 192, 192)',
+            'rgb(54, 162, 235)',
+            'rgb(153, 102, 255)',
+            'rgb(201, 203, 207)'
+        ];
+        
+        // 새 차트 생성
+        window.weekdayAttendanceChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: weekdayData.map(d => d.day + '요일'),
+                datasets: [{
+                    label: '요일별 평균 출석률 (%)',
+                    data: weekdayData.map(d => d.rate),
+                    backgroundColor: backgroundColors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `평균 출석률: ${context.raw}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 
     // 전체 출석부 로드
     function loadFullAttendance() {
@@ -278,8 +372,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 const chartData = data.daily_rates.map(d => d.rate);
                 
-                // 차트 생성
+                // 일별 출석률 차트 생성
                 createDailyAttendanceChart(chartLabels, chartData);
+                
+                // 요일별 출석률 차트 데이터 준비
+                const weekdayData = calculateWeekdayAttendanceRates(data.dates, data.daily_rates);
+                createWeekdayAttendanceChart(weekdayData);
                 
                 // 날짜 헤더 생성
                 const datesHeader = document.getElementById('dates-header');
