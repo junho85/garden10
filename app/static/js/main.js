@@ -352,8 +352,86 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // 시간별 커밋수 차트 생성
+    function createHourlyCommitsChart(hourlyData) {
+        const ctx = document.getElementById('hourly-commits-chart').getContext('2d');
+        
+        // 기존 차트가 있으면 파괴
+        if (window.hourlyCommitsChart) {
+            window.hourlyCommitsChart.destroy();
+        }
+        
+        // 시간대 레이블 (0시~23시)
+        const labels = Array.from({ length: 24 }, (_, i) => `${i}시`);
+        
+        // 색상 그라디언트 생성
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(75, 192, 192, 0.8)');
+        gradient.addColorStop(1, 'rgba(75, 192, 192, 0.1)');
+        
+        // 새 차트 생성
+        window.hourlyCommitsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '시간별 커밋수',
+                    data: hourlyData,
+                    backgroundColor: gradient,
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5,
+                    maxBarThickness: 40
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return `${context[0].label}`;
+                            },
+                            label: function(context) {
+                                return `커밋수: ${context.raw}개`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     // 전체 출석부 로드
     function loadFullAttendance() {
+        // 시간별 커밋 수 데이터 가져오기
+        fetch('/api/attendance/hourly-commits')
+            .then(response => response.json())
+            .then(data => {
+                // 시간별 커밋 수 배열 생성
+                const hourlyCommits = Array(24).fill(0);
+                data.forEach(item => {
+                    hourlyCommits[item.hour] = item.count;
+                });
+                
+                // 시간별 커밋 차트 생성
+                createHourlyCommitsChart(hourlyCommits);
+            })
+            .catch(error => {
+                console.error('시간별 커밋 데이터 로드 중 오류 발생:', error);
+                showNotification('시간별 커밋 데이터를 불러오는 중 오류가 발생했습니다.', true);
+            });
+        
+        // 출석 통계 데이터 가져오기
         fetch('/api/attendance/stats')
             .then(response => response.json())
             .then(data => {

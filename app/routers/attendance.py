@@ -253,6 +253,31 @@ async def create_attendance_from_commits_api(check_date: Optional[str] = None, d
     return result
 
 
+@router.get("/attendance/hourly-commits")
+async def get_hourly_commits(db: Session = Depends(get_db)):
+    """시간대별 커밋 수 분포를 조회합니다."""
+    from sqlalchemy.sql import extract, func
+    from app.models.github_commit import GitHubCommit
+    
+    # 시간대별 커밋 수를 가져오는 쿼리 (한국 시간 기준)
+    hourly_commits = db.query(
+        extract('hour', func.timezone('Asia/Seoul', GitHubCommit.commit_date)).label('hour'),
+        func.count().label('count')
+    ).group_by('hour').order_by('hour').all()
+    
+    # 0-23시까지 비어있는 시간대를 0으로 채우기 위한 기본 데이터 구성
+    hourly_data = {hour: 0 for hour in range(24)}
+    
+    # 실제 데이터 채우기
+    for hour, count in hourly_commits:
+        hourly_data[hour] = count
+    
+    # 리스트 형태로 데이터 반환
+    result = [{"hour": hour, "count": count} for hour, count in hourly_data.items()]
+    
+    return result
+
+
 @router.get("/attendance/{date_str}")
 async def get_attendance(date_str: str, db: Session = Depends(get_db)):
     """특정 날짜의 출석 현황을 조회합니다."""
