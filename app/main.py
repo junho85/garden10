@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from app.routers import users, attendance, auth, github_commits
+from app.routers import users, attendance, auth, github_commits, admin
 import os
 import argparse
 from app.scheduler import init_scheduler
@@ -55,6 +55,7 @@ app.include_router(users.router, prefix="/api", tags=["users"])
 app.include_router(attendance.router, prefix="/api", tags=["attendance"])
 app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(github_commits.router, prefix="/api", tags=["github_commits"])
+app.include_router(admin.router, prefix="/api", tags=["admin"])
 
 # 정적 파일 서빙
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -72,6 +73,12 @@ async def read_root():
 async def read_user_profile():
     """사용자 프로필 페이지를 제공합니다."""
     with open(os.path.join("app", "static", "user_profile.html"), "r", encoding="utf-8") as f:
+        return f.read()
+
+@app.get("/admin", response_class=HTMLResponse)
+async def read_admin_page():
+    """관리자 페이지를 제공합니다."""
+    with open(os.path.join("app", "static", "admin.html"), "r", encoding="utf-8") as f:
         return f.read()
 
 def parse_args():

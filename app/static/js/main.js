@@ -68,10 +68,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 // 출석부 갱신 버튼 표시 (junho85 유저만)
                 const refreshBtn = document.getElementById('refresh-btn');
+                const adminLink = document.getElementById('admin-link');
                 if (userData.github_id === 'junho85') {
                     refreshBtn.classList.remove('hidden');
+                    adminLink.classList.remove('hidden');
                 } else {
                     refreshBtn.classList.add('hidden');
+                    adminLink.classList.add('hidden');
                 }
             })
             .catch(error => {

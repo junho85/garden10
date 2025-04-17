@@ -286,6 +286,7 @@
                 <div id="user-profile" class="user-profile hidden">
                     <img id="user-avatar" class="user-avatar" src="" alt="프로필 이미지">
                     <span id="user-name"></span>
+                    <a id="admin-link" href="/admin" class="admin-link hidden">관리자</a>
                     <button id="logout-btn" class="logout-button">로그아웃</button>
                 </div>
             </div>
@@ -1029,6 +1030,14 @@
                     // 사용자 정보 표시
                     document.getElementById('user-avatar').src = userData.github_profile_url;
                     document.getElementById('user-name').textContent = userData.github_id;
+                    
+                    // 관리자 링크 표시 여부 (junho85 유저만)
+                    const adminLink = document.getElementById('admin-link');
+                    if (userData.github_id === 'junho85') {
+                        adminLink.classList.remove('hidden');
+                    } else {
+                        adminLink.classList.add('hidden');
+                    }
                 })
                 .catch(error => {
                     // 로그인 안된 상태
