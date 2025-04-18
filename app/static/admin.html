@@ -84,8 +84,28 @@
             margin-top: 20px;
             font-family: monospace;
             white-space: pre-wrap;
-            max-height: 300px;
+            max-height: 600px;
             overflow: auto;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        /* JSON 데이터 보기 좋게 스타일링 */
+        .json-key {
+            color: #f1c40f;
+            font-weight: bold;
+        }
+
+        .json-string {
+            color: #2ecc71;
+        }
+
+        .json-number {
+            color: #3498db;
+        }
+
+        .json-boolean {
+            color: #e74c3c;
         }
 
         /* 로그 스타일 */
@@ -179,7 +199,7 @@
                     접근 권한이 없습니다. 관리자만 이용할 수 있는 페이지입니다.
                 </p>
             </div>
-            
+
             <div id="admin-content" class="hidden">
                 <!-- 탭 메뉴 -->
                 <div class="tabs">
@@ -188,7 +208,7 @@
                     <div class="tab" data-tab="users">사용자 관리</div>
                     <div class="tab" data-tab="logs">로그 확인</div>
                 </div>
-                
+
                 <!-- 출석 관리 탭 -->
                 <div id="attendance-tab" class="tab-content active">
                     <div class="admin-card">
@@ -199,7 +219,7 @@
                         </div>
                         <div id="refresh-result" class="hidden result-area"></div>
                     </div>
-                    
+
                     <div class="admin-card">
                         <h3>특정 날짜 출석 처리</h3>
                         <p>특정 날짜의 출석 상태를 수동으로 변경할 수 있습니다.</p>
@@ -226,7 +246,7 @@
                         <div id="update-result" class="hidden result-area"></div>
                     </div>
                 </div>
-                
+
                 <!-- 시스템 관리 탭 -->
                 <div id="system-tab" class="tab-content">
                     <div class="admin-card">
@@ -237,7 +257,7 @@
                         </div>
                         <div id="system-result" class="hidden result-area"></div>
                     </div>
-                    
+
                     <div class="admin-card">
                         <h3>GitHub API 연결 확인</h3>
                         <p>GitHub API와의 연결 상태를 확인합니다.</p>
@@ -247,7 +267,7 @@
                         <div id="github-result" class="hidden result-area"></div>
                     </div>
                 </div>
-                
+
                 <!-- 사용자 관리 탭 -->
                 <div id="users-tab" class="tab-content">
                     <div class="admin-card">
@@ -258,7 +278,7 @@
                         </div>
                         <div id="users-result" class="hidden result-area"></div>
                     </div>
-                    
+
                     <div class="admin-card">
                         <h3>사용자 추가</h3>
                         <p>GitHub ID로 새 사용자를 추가합니다.</p>
@@ -272,7 +292,7 @@
                         <div id="add-user-result" class="hidden result-area"></div>
                     </div>
                 </div>
-                
+
                 <!-- 로그 확인 탭 -->
                 <div id="logs-tab" class="tab-content">
                     <div class="admin-card">
@@ -294,16 +314,16 @@
         document.addEventListener('DOMContentLoaded', function () {
             // 인증 상태 확인
             checkAuthStatus();
-            
+
             // 로그인/로그아웃 버튼 이벤트 리스너
             document.getElementById('login-btn').addEventListener('click', function() {
                 window.location.href = '/api/auth/login';
             });
-            
+
             document.getElementById('logout-btn').addEventListener('click', function() {
                 window.location.href = '/api/auth/logout';
             });
-            
+
             // 탭 전환 이벤트 리스너
             const tabs = document.querySelectorAll('.tab');
             tabs.forEach(tab => {
@@ -312,56 +332,56 @@
                     tabs.forEach(t => t.classList.remove('active'));
                     // 현재 탭 활성화
                     this.classList.add('active');
-                    
+
                     // 모든 탭 컨텐츠 숨기기
                     const tabContents = document.querySelectorAll('.tab-content');
                     tabContents.forEach(content => content.classList.remove('active'));
-                    
+
                     // 선택한 탭 컨텐츠 표시
                     const tabContentId = this.getAttribute('data-tab') + '-tab';
                     document.getElementById(tabContentId).classList.add('active');
                 });
             });
-            
+
             // 출석 데이터 갱신 버튼 이벤트 리스너
             document.getElementById('refresh-attendance').addEventListener('click', function() {
                 refreshAttendance();
             });
-            
+
             // 출석 상태 변경 버튼 이벤트 리스너
             document.getElementById('update-attendance').addEventListener('click', function() {
                 updateAttendance();
             });
-            
+
             // 시스템 상태 확인 버튼 이벤트 리스너
             document.getElementById('check-system').addEventListener('click', function() {
                 checkSystemStatus();
             });
-            
+
             // GitHub API 확인 버튼 이벤트 리스너
             document.getElementById('check-github').addEventListener('click', function() {
                 checkGithubApi();
             });
-            
+
             // 사용자 목록 조회 버튼 이벤트 리스너
             document.getElementById('list-users').addEventListener('click', function() {
                 listUsers();
             });
-            
+
             // 사용자 추가 버튼 이벤트 리스너
             document.getElementById('add-user').addEventListener('click', function() {
                 addUser();
             });
-            
+
             // 로그 조회 버튼 이벤트 리스너
             document.getElementById('view-logs').addEventListener('click', function() {
                 viewLogs();
             });
-            
+
             // 사용자 목록 로딩
             loadUsersList();
         });
-        
+
         // 인증 상태 확인
         function checkAuthStatus() {
             fetch('/api/auth/me')
@@ -376,11 +396,11 @@
                     document.getElementById('login-btn').classList.add('hidden');
                     const userProfile = document.getElementById('user-profile');
                     userProfile.classList.remove('hidden');
-                    
+
                     // 사용자 정보 표시
                     document.getElementById('user-avatar').src = userData.github_profile_url;
                     document.getElementById('user-name').textContent = userData.github_id;
-                    
+
                     // 관리자 확인 (junho85만 접근 가능)
                     if (userData.github_id === 'junho85') {
                         document.getElementById('admin-content').classList.remove('hidden');
@@ -395,7 +415,7 @@
                     document.getElementById('access-denied').classList.remove('hidden');
                 });
         }
-        
+
         // 사용자 목록 로드 (사용자 선택 드롭다운용)
         function loadUsersList() {
             fetch('/api/users')
@@ -403,7 +423,7 @@
                 .then(users => {
                     const userSelect = document.getElementById('user-select');
                     userSelect.innerHTML = '<option value="">사용자를 선택하세요</option>';
-                    
+
                     users.forEach(user => {
                         const option = document.createElement('option');
                         option.value = user.github_id;
@@ -415,13 +435,40 @@
                     console.error('사용자 목록 로드 실패:', error);
                 });
         }
-        
+
+        // JSON 데이터를 포맷팅하여 표시하는 함수
+        function formatJSON(json) {
+            if (typeof json !== 'string') {
+                json = JSON.stringify(json, null, 2);
+            }
+
+            // HTML 이스케이프
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+            // JSON 구문 강조
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
         // 출석 데이터 갱신
         function refreshAttendance() {
             const resultArea = document.getElementById('refresh-result');
             resultArea.textContent = '출석 데이터 갱신 중...';
             resultArea.classList.remove('hidden');
-            
+
             fetch('/api/admin/refresh-attendance', {
                 method: 'POST',
                 headers: {
@@ -430,7 +477,7 @@
             })
             .then(response => response.json())
             .then(data => {
-                resultArea.textContent = JSON.stringify(data, null, 2);
+                resultArea.innerHTML = formatJSON(data);
                 showNotification('출석 데이터가 갱신되었습니다.', false);
             })
             .catch(error => {
@@ -438,22 +485,22 @@
                 showNotification('출석 데이터 갱신 중 오류가 발생했습니다.', true);
             });
         }
-        
+
         // 출석 상태 수동 변경
         function updateAttendance() {
             const github_id = document.getElementById('user-select').value;
             const date = document.getElementById('date-input').value;
             const is_attended = document.getElementById('attendance-status').value === '1';
-            
+
             if (!github_id || !date) {
                 showNotification('사용자와 날짜를 모두 선택해주세요.', true);
                 return;
             }
-            
+
             const resultArea = document.getElementById('update-result');
             resultArea.textContent = '출석 상태 변경 중...';
             resultArea.classList.remove('hidden');
-            
+
             fetch('/api/admin/update-attendance', {
                 method: 'POST',
                 headers: {
@@ -467,7 +514,7 @@
             })
             .then(response => response.json())
             .then(data => {
-                resultArea.textContent = JSON.stringify(data, null, 2);
+                resultArea.innerHTML = formatJSON(data);
                 showNotification('출석 상태가 변경되었습니다.', false);
             })
             .catch(error => {
@@ -475,68 +522,68 @@
                 showNotification('출석 상태 변경 중 오류가 발생했습니다.', true);
             });
         }
-        
+
         // 시스템 상태 확인
         function checkSystemStatus() {
             const resultArea = document.getElementById('system-result');
             resultArea.textContent = '시스템 상태 확인 중...';
             resultArea.classList.remove('hidden');
-            
+
             fetch('/api/admin/system-status')
                 .then(response => response.json())
                 .then(data => {
-                    resultArea.textContent = JSON.stringify(data, null, 2);
+                    resultArea.innerHTML = formatJSON(data);
                 })
                 .catch(error => {
                     resultArea.textContent = '오류 발생: ' + error.message;
                 });
         }
-        
+
         // GitHub API 확인
         function checkGithubApi() {
             const resultArea = document.getElementById('github-result');
             resultArea.textContent = 'GitHub API 연결 확인 중...';
             resultArea.classList.remove('hidden');
-            
+
             fetch('/api/admin/check-github-api')
                 .then(response => response.json())
                 .then(data => {
-                    resultArea.textContent = JSON.stringify(data, null, 2);
+                    resultArea.innerHTML = formatJSON(data);
                 })
                 .catch(error => {
                     resultArea.textContent = '오류 발생: ' + error.message;
                 });
         }
-        
+
         // 사용자 목록 조회
         function listUsers() {
             const resultArea = document.getElementById('users-result');
             resultArea.textContent = '사용자 목록 조회 중...';
             resultArea.classList.remove('hidden');
-            
+
             fetch('/api/users')
                 .then(response => response.json())
                 .then(data => {
-                    resultArea.textContent = JSON.stringify(data, null, 2);
+                    resultArea.innerHTML = formatJSON(data);
                 })
                 .catch(error => {
                     resultArea.textContent = '오류 발생: ' + error.message;
                 });
         }
-        
+
         // 사용자 추가
         function addUser() {
             const github_id = document.getElementById('new-github-id').value;
-            
+
             if (!github_id) {
                 showNotification('GitHub ID를 입력해주세요.', true);
                 return;
             }
-            
+
             const resultArea = document.getElementById('add-user-result');
             resultArea.textContent = '사용자 추가 중...';
             resultArea.classList.remove('hidden');
-            
+
             fetch('/api/admin/add-user', {
                 method: 'POST',
                 headers: {
@@ -548,7 +595,7 @@
             })
             .then(response => response.json())
             .then(data => {
-                resultArea.textContent = JSON.stringify(data, null, 2);
+                resultArea.innerHTML = formatJSON(data);
                 showNotification('사용자가 추가되었습니다.', false);
                 // 사용자 목록 다시 로드
                 loadUsersList();
@@ -558,35 +605,35 @@
                 showNotification('사용자 추가 중 오류가 발생했습니다.', true);
             });
         }
-        
+
         // 로그 조회
         function viewLogs() {
             const logsList = document.getElementById('logs-list');
             logsList.innerHTML = '<p>로그 조회 중...</p>';
             logsList.classList.remove('hidden');
-            
+
             fetch('/api/admin/logs')
                 .then(response => response.json())
                 .then(logs => {
                     logsList.innerHTML = '';
-                    
+
                     logs.forEach(log => {
                         const logEntry = document.createElement('div');
                         logEntry.className = `log-entry log-level-${log.level.toLowerCase()}`;
-                        
+
                         const logTime = document.createElement('div');
                         logTime.className = 'log-time';
                         logTime.textContent = new Date(log.timestamp).toLocaleString();
-                        
+
                         const logMessage = document.createElement('div');
                         logMessage.className = 'log-message';
                         logMessage.textContent = `[${log.level}] ${log.message}`;
-                        
+
                         logEntry.appendChild(logTime);
                         logEntry.appendChild(logMessage);
                         logsList.appendChild(logEntry);
                     });
-                    
+
                     if (logs.length === 0) {
                         logsList.innerHTML = '<p>조회된 로그가 없습니다.</p>';
                     }
@@ -595,15 +642,15 @@
                     logsList.innerHTML = `<p>로그 조회 중 오류 발생: ${error.message}</p>`;
                 });
         }
-        
+
         // 알림 메시지 표시
         function showNotification(message, isError = false) {
             const notification = document.createElement('div');
             notification.className = isError ? 'notification error' : 'notification';
             notification.textContent = message;
-            
+
             document.body.appendChild(notification);
-            
+
             // 3초 후 알림 제거
             setTimeout(() => {
                 notification.remove();

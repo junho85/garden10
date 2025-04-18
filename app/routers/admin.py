@@ -5,11 +5,12 @@ import os
 import psutil
 import time
 import httpx
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import List, Optional
 from pydantic import BaseModel
 
 from app.database import get_db
+from app.models.github_commit import GitHubCommit
 from app.models.user import User
 from app.models.attendance import Attendance
 from app.services.attendance_service import check_all_attendances, create_attendance_from_db_commits
@@ -44,29 +45,66 @@ async def refresh_attendance(
         # 전체 출석 체크 함수 호출
         check_date = date.today()  # 오늘 날짜 기준으로 출석 체크
         result = await check_all_attendances(check_date=check_date, db=db)
-        
+
         # 결과 형식 맞추기
         success_count = 0
         error_count = 0
         updated_users = []
         errors = []
-        
+        detailed_results = []
+
         for item in result.get("results", []):
             if item.get("status") == "success":
                 success_count += 1
-                updated_users.append(item.get("github_id"))
+                github_id = item.get("github_id")
+                updated_users.append(github_id)
+
+                # 해당 사용자의 커밋 정보 조회
+                kst_offset = timedelta(hours=9)  # UTC+9
+                start_datetime = datetime.combine(check_date, datetime.min.time()) - kst_offset
+                end_datetime = datetime.combine(check_date, datetime.max.time()) - kst_offset
+
+                commits = db.query(GitHubCommit).filter(
+                    GitHubCommit.github_id == github_id,
+                    GitHubCommit.commit_date >= start_datetime,
+                    GitHubCommit.commit_date <= end_datetime
+                ).all()
+
+                commit_details = []
+                for commit in commits:
+                    commit_details.append({
+                        "commit_id": commit.commit_id,
+                        "repository": commit.repository,
+                        "commit_date": commit.commit_date.isoformat(),
+                        "message": commit.message
+                    })
+
+                # 출석 정보 조회
+                attendance = db.query(Attendance).filter(
+                    Attendance.github_id == github_id,
+                    Attendance.attendance_date == check_date
+                ).first()
+
+                detailed_results.append({
+                    "github_id": github_id,
+                    "is_attended": item.get("is_attended", False),
+                    "commit_count": item.get("commit_count", 0),
+                    "action_performed": "updated" if attendance and attendance.updated_at else "created",
+                    "commits": commit_details
+                })
             else:
                 error_count += 1
                 errors.append({
                     "github_id": item.get("github_id"),
                     "error": item.get("message")
                 })
-        
+
         results = {
             "success": True,
             "message": "출석 데이터가 갱신되었습니다.",
             "date": check_date.isoformat(),
             "updated_users": updated_users,
+            "detailed_results": detailed_results,
             "errors": errors,
             "stats": {
                 "total": success_count + error_count,
@@ -74,11 +112,11 @@ async def refresh_attendance(
                 "errors": error_count
             }
         }
-        
+
         # 에러가 있으면 부분 성공으로 표시
         if errors:
             results["message"] = "일부 사용자의 출석 데이터가 갱신되지 않았습니다."
-        
+
         return results
     except Exception as e:
         raise HTTPException(
@@ -102,16 +140,31 @@ async def update_attendance(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"GitHub ID '{update_data.github_id}'를 가진 사용자를 찾을 수 없습니다."
             )
-        
+
         # 해당 날짜의 출석 기록 확인
         attendance = db.query(Attendance).filter(
             Attendance.github_id == update_data.github_id,
-            Attendance.date == update_data.date
+            Attendance.attendance_date == update_data.date
         ).first()
-        
+
+        # 해당 날짜의 커밋 정보 조회
+        kst_offset = timedelta(hours=9)  # UTC+9
+        check_date = datetime.strptime(update_data.date, "%Y-%m-%d").date()
+        start_datetime = datetime.combine(check_date, datetime.min.time()) - kst_offset
+        end_datetime = datetime.combine(check_date, datetime.max.time()) - kst_offset
+
+        commits = db.query(GitHubCommit).filter(
+            GitHubCommit.github_id == update_data.github_id,
+            GitHubCommit.commit_date >= start_datetime,
+            GitHubCommit.commit_date <= end_datetime
+        ).all()
+
+        commit_count = len(commits)
+
         if attendance:
             # 기존 출석 기록 업데이트
             attendance.is_attended = update_data.is_attended
+            attendance.commit_count = commit_count  # 커밋 수 업데이트
             attendance.updated_at = datetime.utcnow()
             db.commit()
             message = "출석 상태가 업데이트되었습니다."
@@ -119,22 +172,36 @@ async def update_attendance(
             # 새로운 출석 기록 생성
             new_attendance = Attendance(
                 github_id=update_data.github_id,
-                date=update_data.date,
+                attendance_date=update_data.date,
                 is_attended=update_data.is_attended,
+                commit_count=commit_count,  # 커밋 수 설정
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
             db.add(new_attendance)
             db.commit()
             message = "출석 상태가 새로 생성되었습니다."
-        
+
+        # 커밋 상세 정보 생성
+        commit_details = []
+        for commit in commits:
+            commit_details.append({
+                "commit_id": commit.commit_id,
+                "repository": commit.repository,
+                "commit_date": commit.commit_date.isoformat(),
+                "message": commit.message
+            })
+
         return {
             "success": True,
             "message": message,
             "data": {
                 "github_id": update_data.github_id,
                 "date": update_data.date,
-                "is_attended": update_data.is_attended
+                "is_attended": update_data.is_attended,
+                "commit_count": commit_count,
+                "action_performed": "created" if not attendance else "updated",
+                "commits": commit_details
             }
         }
     except HTTPException as he:
@@ -152,27 +219,27 @@ async def system_status(current_user: User = Depends(get_admin_user)):
     try:
         # CPU 사용량
         cpu_percent = psutil.cpu_percent(interval=1)
-        
+
         # 메모리 사용량
         memory = psutil.virtual_memory()
         memory_used_percent = memory.percent
         memory_used_mb = memory.used / (1024 * 1024)  # MB로 변환
         memory_total_mb = memory.total / (1024 * 1024)  # MB로 변환
-        
+
         # 디스크 사용량
         disk = psutil.disk_usage('/')
         disk_used_percent = disk.percent
         disk_used_gb = disk.used / (1024 * 1024 * 1024)  # GB로 변환
         disk_total_gb = disk.total / (1024 * 1024 * 1024)  # GB로 변환
-        
+
         # 프로세스 정보
         process = psutil.Process(os.getpid())
         process_start_time = datetime.fromtimestamp(process.create_time()).strftime('%Y-%m-%d %H:%M:%S')
         process_memory_mb = process.memory_info().rss / (1024 * 1024)  # MB로 변환
-        
+
         # 시스템 업타임
         boot_time = datetime.fromtimestamp(psutil.boot_time()).strftime('%Y-%m-%d %H:%M:%S')
-        
+
         return {
             "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             "system": {
@@ -207,13 +274,13 @@ async def check_github_api(current_user: User = Depends(get_admin_user)):
     """GitHub API 연결 상태를 확인합니다. (관리자 전용)"""
     try:
         start_time = time.time()
-        
+
         async with httpx.AsyncClient() as client:
             response = await client.get("https://api.github.com/zen")
-            
+
         end_time = time.time()
         response_time = round((end_time - start_time) * 1000, 2)  # ms로 변환
-        
+
         return {
             "status": "success",
             "message": "GitHub API 연결이 정상입니다.",
@@ -245,11 +312,11 @@ async def add_user(
                     "message": f"GitHub ID '{user_data.github_id}'는 이미 등록된 사용자입니다."
                 }
             )
-        
+
         # GitHub API로 사용자 정보 확인
         async with httpx.AsyncClient() as client:
             github_response = await client.get(f"https://api.github.com/users/{user_data.github_id}")
-            
+
             if github_response.status_code != 200:
                 return JSONResponse(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -258,19 +325,19 @@ async def add_user(
                         "message": f"GitHub에서 '{user_data.github_id}' 사용자를 찾을 수 없습니다."
                     }
                 )
-                
+
             github_user_info = github_response.json()
-        
+
         # 새 사용자 생성
         new_user = User(
             github_id=user_data.github_id,
             github_api_token=None  # 토큰은 로그인 시 설정됨
         )
-        
+
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
-        
+
         return {
             "success": True,
             "message": f"사용자 '{user_data.github_id}'가 성공적으로 추가되었습니다.",
@@ -294,7 +361,7 @@ async def view_logs(
 ):
     """
     애플리케이션 로그를 조회합니다. (관리자 전용)
-    
+
     현재는 가상의 로그 데이터를 반환합니다. 실제 로그 파일을 읽는 코드로 대체해야 합니다.
     """
     try:
@@ -322,7 +389,7 @@ async def view_logs(
                 message="일부 사용자의 출석 체크 중 오류가 발생했습니다."
             )
         ]
-        
+
         return sample_logs[:limit]
     except Exception as e:
         raise HTTPException(
