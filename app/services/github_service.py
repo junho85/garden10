@@ -266,3 +266,74 @@ async def fetch_and_save_commits(db: Session, github_id: str, check_date: date, 
         "saved_commits": saved_count,
         "status": "success"
     }
+    
+    
+async def get_all_users_attendance_stats(db: Session, start_date: str, end_date: str) -> List[Dict[str, Any]]:
+    """
+    모든 사용자의 출석 통계 정보를 조회합니다.
+    
+    Args:
+        db: 데이터베이스 세션
+        start_date: 시작 날짜 (YYYY-MM-DD 형식)
+        end_date: 종료 날짜 (YYYY-MM-DD 형식)
+        
+    Returns:
+        List[Dict[str, Any]]: 사용자별 출석 통계 목록
+    """
+    from app.models.user import User
+    from app.models.attendance import Attendance
+    
+    # 모든 사용자 조회
+    users = db.query(User).all()
+    
+    # 결과를 저장할 리스트
+    results = []
+    
+    for user in users:
+        github_id = user.github_id
+        
+        # 해당 사용자의 출석 데이터 조회
+        attendances = db.query(Attendance).filter(
+            Attendance.github_id == github_id,
+            Attendance.attendance_date >= start_date,
+            Attendance.attendance_date <= end_date
+        ).order_by(Attendance.attendance_date).all()
+        
+        # 출석 데이터가 없으면 기본 정보만 포함
+        if not attendances:
+            results.append({
+                "github_id": github_id,
+                "total_days": 0,
+                "attended_days": 0,
+                "attendance_rate": 0,
+                "total_commits": 0,
+                "attendance_by_date": {}
+            })
+            continue
+        
+        # 통계 계산
+        total_days = len(attendances)
+        attended_days = sum(1 for a in attendances if a.is_attended)
+        total_commits = sum(a.commit_count for a in attendances)
+        attendance_rate = round(attended_days / total_days * 100, 1) if total_days > 0 else 0
+        
+        # 날짜별 출석 정보
+        attendance_by_date = {}
+        for a in attendances:
+            date_str = a.attendance_date.isoformat()
+            attendance_by_date[date_str] = {
+                "commit_count": a.commit_count,
+                "is_attended": a.is_attended
+            }
+        
+        # 결과에 추가
+        results.append({
+            "github_id": github_id,
+            "total_days": total_days,
+            "attended_days": attended_days,
+            "attendance_rate": attendance_rate,
+            "total_commits": total_commits,
+            "attendance_by_date": attendance_by_date
+        })
+    
+    return results

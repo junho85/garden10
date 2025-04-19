@@ -15,6 +15,7 @@ from app.models.user import User
 from app.models.attendance import Attendance
 from app.services.attendance_service import check_all_attendances, create_attendance_from_db_commits
 from app.utils.auth_utils import get_admin_user
+from app.services.github_service import get_all_users_attendance_stats
 
 router = APIRouter()
 
@@ -33,6 +34,10 @@ class LogEntry(BaseModel):
     timestamp: datetime
     level: str
     message: str
+    
+# 응원메시지 프롬프트 요청 모델
+class MotivationalPromptRequest(BaseModel):
+    prompt_template: str
 
 # 관리자 - 출석 데이터 갱신
 @router.post("/admin/refresh-attendance", tags=["admin"])
@@ -395,4 +400,68 @@ async def view_logs(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"로그 조회 중 오류가 발생했습니다: {str(e)}"
+        )
+        
+# 관리자 - 응원메시지 프롬프트 생성
+@router.post("/admin/generate-motivational-prompt", tags=["admin"])
+async def generate_motivational_prompt(
+    prompt_data: MotivationalPromptRequest,
+    current_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """출석 데이터를 바탕으로 응원메시지 프롬프트를 생성합니다. (관리자 전용)"""
+    try:
+        # 시작일 계산 (정원사들 시즌10 시작일)
+        start_date = "2025-03-10"
+        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+        
+        # 현재 날짜
+        current_date = datetime.now().date()
+        
+        # 마감일 계산 (시작일로부터 99일)
+        end_date_obj = start_date_obj + timedelta(days=99)
+        end_date = end_date_obj.strftime("%Y-%m-%d")
+        
+        # 현재 날짜가 시작일 기준 몇일째인지 계산
+        days_since_start = (current_date - start_date_obj).days + 1
+        
+        # 모든 사용자의 출석 통계 가져오기
+        users_stats = await get_all_users_attendance_stats(db, start_date, current_date.strftime("%Y-%m-%d"))
+        
+        # 프롬프트 기본 정보 구성
+        prompt_base = prompt_data.prompt_template + f"\n현재 정원사들 시즌10 {days_since_start}일째입니다!\n"
+        prompt_base += f"시작일: {start_date}\n"
+        prompt_base += f"오늘 날짜: {current_date.strftime('%Y-%m-%d')}\n"
+        prompt_base += f"종료일: {end_date}\n\n"
+        
+        # 각 사용자별 출석 정보 추가
+        for user_stat in users_stats:
+            github_id = user_stat.get("github_id")
+            
+            if user_stat.get("total_days") == 0:
+                prompt_base += f"{github_id} 유저의 출석 정보를 찾을 수 없습니다.\n"
+                continue
+                
+            prompt_base += f"\n{github_id} 유저 출석 현황:\n"
+            prompt_base += f"총 출석 일수: {user_stat.get('attended_days')}/{user_stat.get('total_days')}일 (출석률: {user_stat.get('attendance_rate')}%)\n"
+            prompt_base += f"총 커밋 수: {user_stat.get('total_commits')}개\n"
+            
+            # 날짜별 출석 정보 추가
+            attendance_by_date = user_stat.get("attendance_by_date", {})
+            for date_str, info in sorted(attendance_by_date.items()):
+                status = "✅ 출석" if info.get("is_attended") else "❌ 미출석"
+                prompt_base += f"{date_str}: {status} (커밋 {info.get('commit_count')}개)\n"
+                
+            prompt_base += "=" * 60 + "\n"
+            
+        return {
+            "success": True,
+            "message": "응원메시지 프롬프트가 생성되었습니다.",
+            "prompt": prompt_base
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"응원메시지 프롬프트 생성 중 오류가 발생했습니다: {str(e)}"
         )
