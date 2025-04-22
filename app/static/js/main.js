@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', function () {
+    // 전역 변수로 출석부 데이터 저장
+    let attendanceData = null;
+    let isReversed = false;
+    
     // 초기 데이터 로드
     loadGardeners();
     loadProgressData();
@@ -23,6 +27,14 @@ document.addEventListener('DOMContentLoaded', function () {
         loadTodayAttendance();
         loadFullAttendance();
         showNotification('출석부가 갱신되었습니다.');
+    });
+    
+    // 날짜 정렬 토글 이벤트 리스너
+    document.getElementById('sort-dates-toggle').addEventListener('change', function() {
+        isReversed = this.checked;
+        if (attendanceData) {
+            renderAttendanceTable(attendanceData, isReversed);
+        }
     });
 
     // 정원사들 목록 로드
@@ -438,20 +450,35 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch('/api/attendance/stats')
             .then(response => response.json())
             .then(data => {
+                // 전역 변수에 데이터 저장
+                attendanceData = data;
+                
+                // 현재 토글 상태 확인
+                isReversed = document.getElementById('sort-dates-toggle').checked;
+                
+                // 출석부 테이블 렌더링
+                renderAttendanceTable(data, isReversed);
+                
                 // 전체 통계 데이터 표시
                 document.getElementById('overall-attendance-rate').textContent = `${data.overall_attendance_rate}%`;
                 document.getElementById('total-present').textContent = data.total_present;
                 document.getElementById('total-absent').textContent = data.total_absent;
                 
                 // 일별 출석률 차트 데이터 준비
-                const chartLabels = data.dates.map(dateStr => {
+                const chartLabels = [...data.dates].map(dateStr => {
                     const date = new Date(dateStr);
                     const month = date.getMonth() + 1;
                     const day = date.getDate();
                     return `${month}/${day}`;
                 });
                 
-                const chartData = data.daily_rates.map(d => d.rate);
+                const chartData = [...data.daily_rates].map(d => d.rate);
+                
+                // 최신순 정렬이 적용된 경우 차트 데이터도 뒤집기
+                if (isReversed) {
+                    chartLabels.reverse();
+                    chartData.reverse();
+                }
                 
                 // 일별 출석률 차트 생성
                 createDailyAttendanceChart(chartLabels, chartData);
@@ -459,95 +486,115 @@ document.addEventListener('DOMContentLoaded', function () {
                 // 요일별 출석률 차트 데이터 준비
                 const weekdayData = calculateWeekdayAttendanceRates(data.dates, data.daily_rates);
                 createWeekdayAttendanceChart(weekdayData);
-                
-                // 날짜 헤더 생성
-                const datesHeader = document.getElementById('dates-header');
-                // 기존 기본 헤더를 제외하고 날짜 헤더만 새로 생성
-                while (datesHeader.childElementCount > 3) {
-                    datesHeader.removeChild(datesHeader.lastChild);
-                }
-                
-                // 날짜별 헤더 추가
-                data.dates.forEach(dateStr => {
-                    const date = new Date(dateStr);
-                    const th = document.createElement('th');
-                    th.className = 'date-cell';
-                    
-                    // 날짜 형식: MM/DD (MON) - 반응형으로 표시
-                    const month = date.getMonth() + 1;
-                    const day = date.getDate();
-                    const dayOfWeek = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
-                    
-                    th.innerHTML = `
-                        <div class="date-header">
-                            <span class="date-full">${month}/${day} (${dayOfWeek})</span>
-                            <span class="date-short">${month}/${day}</span>
-                        </div>
-                    `;
-                    datesHeader.appendChild(th);
-                });
-                
-                // 사용자별 출석 데이터 생성
-                const attendanceBody = document.getElementById('attendance-data');
-                attendanceBody.innerHTML = '';
-                
-                data.users.forEach(user => {
-                    const tr = document.createElement('tr');
-                    
-                    // 순위 셀
-                    const rankTd = document.createElement('td');
-                    rankTd.className = 'fixed-column';
-                    rankTd.innerHTML = `<span class="user-rank">${user.rank}</span>`;
-                    tr.appendChild(rankTd);
-                    
-                    // 사용자 정보 셀
-                    const userTd = document.createElement('td');
-                    userTd.className = 'fixed-column';
-                    userTd.innerHTML = `
-                        <div class="user-cell">
-                            <img src="https://github.com/${user.github_id}.png" alt="${user.github_id}">
-                            <span>${user.github_id}</span>
-                        </div>
-                    `;
-                    tr.appendChild(userTd);
-                    
-                    // 출석률 셀
-                    const rateTd = document.createElement('td');
-                    rateTd.className = 'fixed-column';
-                    rateTd.innerHTML = `<span class="attendance-rate">${user.attendance_rate}%</span>`;
-                    tr.appendChild(rateTd);
-                    
-                    // 날짜별 출석 현황 셀
-                    user.attendance.forEach(isAttended => {
-                        const td = document.createElement('td');
-                        td.className = 'date-cell';
-                        const emoji = isAttended ? '🌱' : '❌';
-                        const colorClass = isAttended ? 'attended' : 'absent';
-                        td.innerHTML = `<span class="attendance-mark ${colorClass}">${emoji}</span>`;
-                        tr.appendChild(td);
-                    });
-                    
-                    attendanceBody.appendChild(tr);
-                });
-                
-                // 일별 출석률 행 생성
-                const dailyRatesRow = document.getElementById('daily-rates');
-                // 기존 기본 셀을 제외하고 날짜별 셀만 새로 생성
-                while (dailyRatesRow.childElementCount > 1) {
-                    dailyRatesRow.removeChild(dailyRatesRow.lastChild);
-                }
-                
-                // 일별 출석률 셀 추가
-                data.daily_rates.forEach(dateRate => {
-                    const td = document.createElement('td');
-                    td.className = 'date-cell';
-                    td.textContent = `${dateRate.rate}%`;
-                    dailyRatesRow.appendChild(td);
-                });
             })
             .catch(error => {
                 console.error('전체 출석부 데이터 로드 중 오류 발생:', error);
                 showNotification('출석부 데이터를 불러오는 중 오류가 발생했습니다.', true);
             });
+    }
+    
+    // 출석부 테이블 렌더링 함수
+    function renderAttendanceTable(data, isReversed) {
+        // 날짜 헤더 생성
+        const datesHeader = document.getElementById('dates-header');
+        // 기존 기본 헤더를 제외하고 날짜 헤더만 새로 생성
+        while (datesHeader.childElementCount > 3) {
+            datesHeader.removeChild(datesHeader.lastChild);
+        }
+        
+        // 날짜 배열 복사 (원본 데이터 변경 방지)
+        let datesList = [...data.dates];
+        let dailyRatesList = [...data.daily_rates];
+        
+        // 최신순 정렬이 적용된 경우 날짜 배열 뒤집기
+        if (isReversed) {
+            datesList.reverse();
+            dailyRatesList.reverse();
+        }
+        
+        // 날짜별 헤더 추가
+        datesList.forEach(dateStr => {
+            const date = new Date(dateStr);
+            const th = document.createElement('th');
+            th.className = 'date-cell';
+            
+            // 날짜 형식: MM/DD (MON) - 반응형으로 표시
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            const dayOfWeek = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
+            
+            th.innerHTML = `
+                <div class="date-header">
+                    <span class="date-full">${month}/${day} (${dayOfWeek})</span>
+                    <span class="date-short">${month}/${day}</span>
+                </div>
+            `;
+            datesHeader.appendChild(th);
+        });
+        
+        // 사용자별 출석 데이터 생성
+        const attendanceBody = document.getElementById('attendance-data');
+        attendanceBody.innerHTML = '';
+        
+        data.users.forEach(user => {
+            const tr = document.createElement('tr');
+            
+            // 순위 셀
+            const rankTd = document.createElement('td');
+            rankTd.className = 'fixed-column';
+            rankTd.innerHTML = `<span class="user-rank">${user.rank}</span>`;
+            tr.appendChild(rankTd);
+            
+            // 사용자 정보 셀
+            const userTd = document.createElement('td');
+            userTd.className = 'fixed-column';
+            userTd.innerHTML = `
+                <div class="user-cell">
+                    <img src="https://github.com/${user.github_id}.png" alt="${user.github_id}">
+                    <span>${user.github_id}</span>
+                </div>
+            `;
+            tr.appendChild(userTd);
+            
+            // 출석률 셀
+            const rateTd = document.createElement('td');
+            rateTd.className = 'fixed-column';
+            rateTd.innerHTML = `<span class="attendance-rate">${user.attendance_rate}%</span>`;
+            tr.appendChild(rateTd);
+            
+            // 날짜별 출석 현황 셀
+            let attendanceData = [...user.attendance];
+            
+            // 최신순 정렬이 적용된 경우 출석 데이터 배열 뒤집기
+            if (isReversed) {
+                attendanceData.reverse();
+            }
+            
+            attendanceData.forEach(isAttended => {
+                const td = document.createElement('td');
+                td.className = 'date-cell';
+                const emoji = isAttended ? '🌱' : '❌';
+                const colorClass = isAttended ? 'attended' : 'absent';
+                td.innerHTML = `<span class="attendance-mark ${colorClass}">${emoji}</span>`;
+                tr.appendChild(td);
+            });
+            
+            attendanceBody.appendChild(tr);
+        });
+        
+        // 일별 출석률 행 생성
+        const dailyRatesRow = document.getElementById('daily-rates');
+        // 기존 기본 셀을 제외하고 날짜별 셀만 새로 생성
+        while (dailyRatesRow.childElementCount > 1) {
+            dailyRatesRow.removeChild(dailyRatesRow.lastChild);
+        }
+        
+        // 일별 출석률 셀 추가
+        dailyRatesList.forEach(dateRate => {
+            const td = document.createElement('td');
+            td.className = 'date-cell';
+            td.textContent = `${dateRate.rate}%`;
+            dailyRatesRow.appendChild(td);
+        });
     }
 });
