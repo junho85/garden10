@@ -1,7 +1,11 @@
 document.addEventListener('DOMContentLoaded', function () {
     // 전역 변수로 출석부 데이터 저장
     let attendanceData = null;
-    let isReversed = false;
+    let isReversed = localStorage.getItem('attendance_sort_reversed') === 'true';
+    
+    // 페이지 로드 시 저장된 토글 상태 복원
+    const sortToggle = document.getElementById('sort-dates-toggle');
+    sortToggle.checked = isReversed;
     
     // 초기 데이터 로드
     loadGardeners();
@@ -30,8 +34,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     
     // 날짜 정렬 토글 이벤트 리스너
-    document.getElementById('sort-dates-toggle').addEventListener('change', function() {
+    sortToggle.addEventListener('change', function() {
         isReversed = this.checked;
+        // localStorage에 토글 상태 저장
+        localStorage.setItem('attendance_sort_reversed', isReversed);
         if (attendanceData) {
             renderAttendanceTable(attendanceData, isReversed);
         }
@@ -453,8 +459,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 // 전역 변수에 데이터 저장
                 attendanceData = data;
                 
-                // 현재 토글 상태 확인
-                isReversed = document.getElementById('sort-dates-toggle').checked;
+                // localStorage에서 정렬 상태 확인
+                isReversed = localStorage.getItem('attendance_sort_reversed') === 'true';
+                document.getElementById('sort-dates-toggle').checked = isReversed;
                 
                 // 출석부 테이블 렌더링
                 renderAttendanceTable(data, isReversed);
