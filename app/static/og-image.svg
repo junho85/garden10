@@ -1,0 +1,43 @@
+<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#ffffff"/>
+  <rect width="1200" height="630" fill="#f6f8fa"/>
+  
+  <!-- 배경 그라데이션 -->
+  <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" style="stop-color:#3498db;stop-opacity:0.1" />
+    <stop offset="100%" style="stop-color:#2ecc71;stop-opacity:0.2" />
+  </linearGradient>
+  <rect width="1200" height="630" fill="url(#grad)"/>
+  
+  <!-- 그림자 효과를 위한 필터 -->
+  <defs>
+    <filter id="shadow" x="0" y="0" width="200%" height="200%">
+      <feOffset result="offOut" in="SourceAlpha" dx="5" dy="5" />
+      <feGaussianBlur result="blurOut" in="offOut" stdDeviation="10" />
+      <feBlend in="SourceGraphic" in2="blurOut" mode="normal" />
+    </filter>
+  </defs>
+  
+  <!-- 메인 타이틀 -->
+  <g filter="url(#shadow)">
+    <text x="600" y="250" font-family="Arial, sans-serif" font-size="80" font-weight="bold" fill="#2c3e50" text-anchor="middle">정원사들 시즌10</text>
+  </g>
+  
+  <!-- 서브 타이틀 -->
+  <text x="600" y="330" font-family="Arial, sans-serif" font-size="40" fill="#34495e" text-anchor="middle">매일 1커밋으로 꾸준한 성장을 기록하는 커뮤니티</text>
+  
+  <!-- 이미지 요소: 심플한 식물 아이콘 -->
+  <g transform="translate(520, 400) scale(1.5)">
+    <path d="M50,0 C60,30 80,30 90,0 C90,50 110,50 110,100 L30,100 C30,50 50,50 50,0 Z" fill="#2ecc71" />
+    <rect x="65" y="100" width="10" height="30" fill="#8b4513" />
+  </g>
+  
+  <!-- 추가 장식 요소 -->
+  <circle cx="300" cy="500" r="20" fill="#3498db" opacity="0.7" />
+  <circle cx="900" cy="400" r="25" fill="#e74c3c" opacity="0.5" />
+  <circle cx="800" cy="150" r="15" fill="#f1c40f" opacity="0.6" />
+  <circle cx="400" cy="180" r="12" fill="#9b59b6" opacity="0.4" />
+  
+  <!-- 하단 텍스트 -->
+  <text x="600" y="550" font-family="Arial, sans-serif" font-size="24" fill="#7f8c8d" text-anchor="middle">https://garden10.junho85.pe.kr</text>
+</svg>

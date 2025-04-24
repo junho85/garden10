@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>사용자 프로필 - 정원사들 시즌10</title>
+    <meta property="og:title" content="사용자 프로필 - 정원사들 시즌10">
+    <meta property="og:description" content="정원사들 시즌10 프로젝트 사용자 프로필 페이지">
+    <meta property="og:image" content="/static/og-image.jpg">
+    <meta id="og-url" property="og:url" content="https://garden10.junho85.pe.kr/users">
+    <meta property="og:type" content="website">
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
         .profile-header {
@@ -365,6 +370,9 @@
                 showError('사용자 ID가 지정되지 않았습니다.');
                 return;
             }
+            
+            // og:url 메타 태그를 동적으로 업데이트
+            updateOgUrl(githubId);
             
             // 사용자 정보 가져오기
             loadUserProfile(githubId);
@@ -1049,6 +1057,21 @@
         // 오류 표시
         function showError(message) {
             alert(message);
+        }
+        
+        // og:url 메타 태그 업데이트 함수
+        function updateOgUrl(githubId) {
+            const ogUrlMeta = document.getElementById('og-url');
+            if (ogUrlMeta) {
+                const baseUrl = ogUrlMeta.getAttribute('content');
+                ogUrlMeta.setAttribute('content', `${baseUrl}/${githubId}`);
+                
+                // og:title도 사용자 이름으로 업데이트
+                const ogTitleMeta = document.querySelector('meta[property="og:title"]');
+                if (ogTitleMeta) {
+                    ogTitleMeta.setAttribute('content', `${githubId} - 정원사들 시즌10`);
+                }
+            }
         }
     </script>
 </body>
