@@ -434,6 +434,27 @@ async def generate_motivational_prompt(
         prompt_base += f"오늘 날짜: {current_date.strftime('%Y-%m-%d')}\n"
         prompt_base += f"종료일: {end_date}\n\n"
         
+        # 오늘의 공개된 커밋 내역 가져오기
+        today_commits = {}
+        for user_stat in users_stats:
+            github_id = user_stat.get("github_id")
+            
+            # KST 기준으로 오늘 날짜 설정
+            kst_offset = timedelta(hours=9)  # UTC+9
+            start_datetime = datetime.combine(current_date, datetime.min.time()) - kst_offset
+            end_datetime = datetime.combine(current_date, datetime.max.time()) - kst_offset
+            
+            # 오늘 커밋 조회
+            user_commits = db.query(GitHubCommit).filter(
+                GitHubCommit.github_id == github_id,
+                GitHubCommit.commit_date >= start_datetime,
+                GitHubCommit.commit_date <= end_datetime,
+                GitHubCommit.is_private == False  # 공개 커밋만 가져오기
+            ).all()
+            
+            if user_commits:
+                today_commits[github_id] = user_commits
+        
         # 각 사용자별 출석 정보 추가
         for user_stat in users_stats:
             github_id = user_stat.get("github_id")
@@ -445,6 +466,13 @@ async def generate_motivational_prompt(
             prompt_base += f"\n{github_id} 유저 출석 현황:\n"
             prompt_base += f"총 출석 일수: {user_stat.get('attended_days')}/{user_stat.get('total_days')}일 (출석률: {user_stat.get('attendance_rate')}%)\n"
             prompt_base += f"총 커밋 수: {user_stat.get('total_commits')}개\n"
+            
+            # 오늘의 공개된 커밋 내역 추가
+            if github_id in today_commits and today_commits[github_id]:
+                prompt_base += f"\n오늘의 공개 커밋 내역:\n"
+                for commit in today_commits[github_id]:
+                    prompt_base += f"- {commit.repository}: {commit.message.splitlines()[0]}\n"
+                prompt_base += "\n"
             
             # 날짜별 출석 정보 추가
             attendance_by_date = user_stat.get("attendance_by_date", {})
