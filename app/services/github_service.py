@@ -1,7 +1,7 @@
 import httpx
 from datetime import datetime, date, timedelta
-from typing import Optional, List, Dict, Any
-from sqlalchemy.orm import Session
+from typing import Optional, List, Dict, Any, Tuple
+from sqlalchemy.orm import Session, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import func
 import logging
@@ -11,6 +11,36 @@ from app.config import config
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
+
+# KST 오프셋 상수
+KST_OFFSET = timedelta(hours=9)  # UTC+9
+
+
+def apply_date_filters(
+    query: Query, 
+    from_date: Optional[date] = None, 
+    to_date: Optional[date] = None
+) -> Query:
+    """
+    쿼리에 날짜 범위 필터를 적용합니다.
+    
+    Args:
+        query: SQLAlchemy 쿼리 객체
+        from_date: 시작 날짜 (이 날짜 이후의 데이터만 조회)
+        to_date: 종료 날짜 (이 날짜 이전의 데이터만 조회)
+        
+    Returns:
+        Query: 필터가 적용된 쿼리 객체
+    """
+    if from_date:
+        start_datetime = datetime.combine(from_date, datetime.min.time()) - KST_OFFSET
+        query = query.filter(GitHubCommit.commit_date >= start_datetime)
+    
+    if to_date:
+        end_datetime = datetime.combine(to_date, datetime.max.time()) - KST_OFFSET
+        query = query.filter(GitHubCommit.commit_date <= end_datetime)
+        
+    return query
 
 
 async def get_user_commits(
@@ -38,17 +68,7 @@ async def get_user_commits(
     query = db.query(GitHubCommit).filter(GitHubCommit.github_id == github_id)
     
     # 날짜 범위 필터 적용
-    if from_date:
-        # 시작 시간과 종료 시간 설정 (KST 기준)
-        kst_offset = timedelta(hours=9)  # UTC+9
-        start_datetime = datetime.combine(from_date, datetime.min.time()) - kst_offset
-        query = query.filter(GitHubCommit.commit_date >= start_datetime)
-    
-    if to_date:
-        # 시작 시간과 종료 시간 설정 (KST 기준)
-        kst_offset = timedelta(hours=9)  # UTC+9
-        end_datetime = datetime.combine(to_date, datetime.max.time()) - kst_offset
-        query = query.filter(GitHubCommit.commit_date <= end_datetime)
+    query = apply_date_filters(query, from_date, to_date)
     
     return query.order_by(GitHubCommit.commit_date.desc()) \
         .offset(skip) \
@@ -78,31 +98,14 @@ async def get_user_commits_stats(
     query = db.query(GitHubCommit).filter(GitHubCommit.github_id == github_id)
     
     # 날짜 범위 필터 적용
-    if from_date:
-        # 시작 시간과 종료 시간 설정 (KST 기준)
-        kst_offset = timedelta(hours=9)  # UTC+9
-        start_datetime = datetime.combine(from_date, datetime.min.time()) - kst_offset
-        query = query.filter(GitHubCommit.commit_date >= start_datetime)
-    
-    if to_date:
-        # 시작 시간과 종료 시간 설정 (KST 기준)
-        kst_offset = timedelta(hours=9)  # UTC+9
-        end_datetime = datetime.combine(to_date, datetime.max.time()) - kst_offset
-        query = query.filter(GitHubCommit.commit_date <= end_datetime)
+    query = apply_date_filters(query, from_date, to_date)
     
     # 총 커밋 수 조회
     total_commits = query.count()
     
     # 저장소 수 조회 (중복 제거)
     repos_query = db.query(GitHubCommit.repository).filter(GitHubCommit.github_id == github_id)
-    if from_date:
-        kst_offset = timedelta(hours=9)  # UTC+9
-        start_datetime = datetime.combine(from_date, datetime.min.time()) - kst_offset
-        repos_query = repos_query.filter(GitHubCommit.commit_date >= start_datetime)
-    if to_date:
-        kst_offset = timedelta(hours=9)  # UTC+9
-        end_datetime = datetime.combine(to_date, datetime.max.time()) - kst_offset
-        repos_query = repos_query.filter(GitHubCommit.commit_date <= end_datetime)
+    repos_query = apply_date_filters(repos_query, from_date, to_date)
     
     repositories = repos_query.distinct().all()
     total_repos = len(repositories)
