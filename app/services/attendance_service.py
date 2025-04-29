@@ -1,15 +1,15 @@
-import httpx
-from datetime import datetime, date, timedelta
+import logging
+from datetime import datetime, date
+from typing import List, Dict, Any, Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func
-from typing import List, Dict, Any, Optional
-from app.models.user import User
+
+from app.config import config
 from app.models.attendance import Attendance
 from app.models.github_commit import GitHubCommit
-from app.services.github_service import get_github_commits, fetch_and_save_commits
-from app.config import config
-import logging
+from app.models.user import User
+from app.services.github_service import fetch_and_save_commits, apply_date_filters
+from app.utils.date_utils import get_kst_datetime_range
 
 # 로깅 설정
 logging.basicConfig(
@@ -39,7 +39,7 @@ async def check_user_commit_and_save(
         Dict: 처리 결과
     """
     # 사용자 확인
-    user = db.query(User).filter(User.github_id == github_id).first()
+    user = get_user_by_github_id(db, github_id)
     if not user:
         logger.warning(f"사용자를 찾을 수 없음: {github_id}")
         return {"status": "error", "message": f"사용자를 찾을 수 없음: {github_id}"}
@@ -56,6 +56,19 @@ async def check_user_commit_and_save(
         db.rollback()
         return {"status": "error", "message": str(e)}
 
+
+def get_user_by_github_id(db: Session, github_id: str) -> Optional[User]:
+    """
+    GitHub ID로 사용자를 조회합니다.
+    
+    Args:
+        db: 데이터베이스 세션
+        github_id: GitHub 사용자 ID
+        
+    Returns:
+        Optional[User]: 사용자 객체 또는 None
+    """
+    return db.query(User).filter(User.github_id == github_id).first()
 
 async def create_attendance_from_db_commits(
         github_id: str,
@@ -75,22 +88,15 @@ async def create_attendance_from_db_commits(
     """
     try:
         # 사용자 확인
-        user = db.query(User).filter(User.github_id == github_id).first()
+        user = get_user_by_github_id(db, github_id)
         if not user:
             logger.warning(f"사용자를 찾을 수 없음: {github_id}")
             return {"status": "error", "message": f"사용자를 찾을 수 없음: {github_id}"}
         
-        # 시작 시간과 종료 시간 설정 (KST 기준)
-        kst_offset = timedelta(hours=9)  # UTC+9
-        start_datetime = datetime.combine(check_date, datetime.min.time()) - kst_offset
-        end_datetime = datetime.combine(check_date, datetime.max.time()) - kst_offset
-        
         # 해당 날짜에 사용자의 커밋 수 조회
-        commits = db.query(GitHubCommit).filter(
-            GitHubCommit.github_id == github_id,
-            GitHubCommit.commit_date >= start_datetime,
-            GitHubCommit.commit_date <= end_datetime
-        ).all()
+        query = db.query(GitHubCommit).filter(GitHubCommit.github_id == github_id)
+        query = apply_date_filters(query, check_date, check_date)
+        commits = query.all()
         
         commit_count = len(commits)
         is_attended = commit_count > 0
@@ -196,7 +202,7 @@ async def get_user_attendance_history(
     Returns:
         List[Dict]: 출석 기록 목록
     """
-    user = db.query(User).filter(User.github_id == github_id).first()
+    user = get_user_by_github_id(db, github_id)
     if not user:
         return []
 
@@ -279,7 +285,7 @@ async def get_daily_attendance_stats(check_date: date, db: Session) -> Dict[str,
 
     present_users = []
     for attendance in attendances:
-        user = db.query(User).filter(User.github_id == attendance.github_id).first()
+        user = get_user_by_github_id(db, attendance.github_id)
         if user:
             present_users.append({
                 "github_id": user.github_id,

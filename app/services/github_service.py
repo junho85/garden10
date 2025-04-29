@@ -1,19 +1,17 @@
-import httpx
-from datetime import datetime, date, timedelta
-from typing import Optional, List, Dict, Any, Tuple
-from sqlalchemy.orm import Session, Query
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.sql import func
 import logging
+from datetime import datetime, date
+from typing import Optional, List, Dict, Any
 
-from app.models.github_commit import GitHubCommit
+import httpx
+from sqlalchemy.orm import Session, Query
+from sqlalchemy.sql import func
+
 from app.config import config
+from app.models.github_commit import GitHubCommit
+from app.utils.date_utils import get_kst_datetime_range
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
-
-# KST 오프셋 상수
-KST_OFFSET = timedelta(hours=9)  # UTC+9
 
 
 def apply_date_filters(
@@ -33,11 +31,11 @@ def apply_date_filters(
         Query: 필터가 적용된 쿼리 객체
     """
     if from_date:
-        start_datetime = datetime.combine(from_date, datetime.min.time()) - KST_OFFSET
+        start_datetime, _ = get_kst_datetime_range(from_date)
         query = query.filter(GitHubCommit.commit_date >= start_datetime)
     
     if to_date:
-        end_datetime = datetime.combine(to_date, datetime.max.time()) - KST_OFFSET
+        _, end_datetime = get_kst_datetime_range(to_date)
         query = query.filter(GitHubCommit.commit_date <= end_datetime)
         
     return query
