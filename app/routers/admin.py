@@ -16,6 +16,7 @@ from app.models.attendance import Attendance
 from app.services.attendance_service import check_all_attendances, create_attendance_from_db_commits
 from app.utils.auth_utils import get_admin_user
 from app.services.github_service import get_all_users_attendance_stats
+from app.utils.date_utils import get_kst_datetime_range
 
 router = APIRouter()
 
@@ -65,9 +66,7 @@ async def refresh_attendance(
                 updated_users.append(github_id)
 
                 # 해당 사용자의 커밋 정보 조회
-                kst_offset = timedelta(hours=9)  # UTC+9
-                start_datetime = datetime.combine(check_date, datetime.min.time()) - kst_offset
-                end_datetime = datetime.combine(check_date, datetime.max.time()) - kst_offset
+                start_datetime, end_datetime = get_kst_datetime_range(check_date)
 
                 commits = db.query(GitHubCommit).filter(
                     GitHubCommit.github_id == github_id,
@@ -153,10 +152,8 @@ async def update_attendance(
         ).first()
 
         # 해당 날짜의 커밋 정보 조회
-        kst_offset = timedelta(hours=9)  # UTC+9
         check_date = datetime.strptime(update_data.date, "%Y-%m-%d").date()
-        start_datetime = datetime.combine(check_date, datetime.min.time()) - kst_offset
-        end_datetime = datetime.combine(check_date, datetime.max.time()) - kst_offset
+        start_datetime, end_datetime = get_kst_datetime_range(check_date)
 
         commits = db.query(GitHubCommit).filter(
             GitHubCommit.github_id == update_data.github_id,
@@ -440,9 +437,7 @@ async def generate_motivational_prompt(
             github_id = user_stat.get("github_id")
             
             # KST 기준으로 오늘 날짜 설정
-            kst_offset = timedelta(hours=9)  # UTC+9
-            start_datetime = datetime.combine(current_date, datetime.min.time()) - kst_offset
-            end_datetime = datetime.combine(current_date, datetime.max.time()) - kst_offset
+            start_datetime, end_datetime = get_kst_datetime_range(current_date)
             
             # 오늘 커밋 조회
             user_commits = db.query(GitHubCommit).filter(
