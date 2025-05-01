@@ -13,6 +13,12 @@ from app.services.attendance_service import (
     create_attendance_from_commits
 )
 from app.config import config
+from app.utils.error_utils import (
+    create_http_exception,
+    handle_validation_error,
+    handle_not_found_error,
+    service_result_to_response
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -28,10 +34,10 @@ async def check_attendance_api(check_date: Optional[str] = None, db: Session = D
         try:
             date_to_check = date.fromisoformat(check_date)
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+            raise handle_validation_error("Invalid date format. Use YYYY-MM-DD", "check_date")
 
     result = await check_all_attendances(date_to_check, db)
-    return result
+    return service_result_to_response(result)
 
 
 @router.post("/attendance/check/{github_id}")
@@ -46,28 +52,25 @@ async def check_user_attendance_api(
         try:
             date_to_check = date.fromisoformat(check_date)
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+            raise handle_validation_error("Invalid date format. Use YYYY-MM-DD", "check_date")
     else:
         date_to_check = date.today()
 
     # 사용자 확인
     user = db.query(User).filter(User.github_id == github_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail=f"User with github_id {github_id} not found")
+        raise handle_not_found_error("사용자", github_id)
 
     # 사용자별 토큰이 있으면 사용, 없으면 공통 토큰 사용
     api_token = user.github_api_token or config.github.get("api_token", "")
     if not api_token:
-        raise HTTPException(
+        raise create_http_exception(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="GitHub API token not configured"
         )
 
     result = await check_user_commit_and_save(github_id, date_to_check, api_token, db)
-    if result["status"] == "error":
-        raise HTTPException(status_code=500, detail=result["message"])
-
-    return result
+    return service_result_to_response(result)
 
 
 @router.get("/attendance/history/{github_id}")
@@ -82,11 +85,11 @@ async def get_attendance_history(
         start = date.fromisoformat(start_date)
         end = date.fromisoformat(end_date) if end_date else date.today()
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+        raise handle_validation_error("Invalid date format. Use YYYY-MM-DD", "start_date or end_date")
 
     user = db.query(User).filter(User.github_id == github_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail=f"User with github_id {github_id} not found")
+        raise handle_not_found_error("사용자", github_id)
 
     history = await get_user_attendance_history(github_id, start, end, db)
     return history
@@ -109,7 +112,7 @@ async def get_attendance_stats(
             start = date.fromisoformat(start_date)
         except ValueError as e:
             logger.error(f"Invalid start_date format: {e}")
-            raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD")
+            raise handle_validation_error("Invalid date format. Use YYYY-MM-DD", "start_date")
     else:
         # 기본 시작일 (프로젝트 설정값 사용)
         try:
@@ -128,7 +131,7 @@ async def get_attendance_stats(
             end = date.fromisoformat(end_date)
         except ValueError as e:
             logger.error(f"Invalid end_date format: {e}")
-            raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD")
+            raise handle_validation_error("Invalid date format. Use YYYY-MM-DD", "end_date")
     else:
         end = date.today()
 
@@ -217,7 +220,7 @@ async def get_attendance_stats_for_date(date_str: str, db: Session = Depends(get
     try:
         check_date = date.fromisoformat(date_str)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+        raise handle_validation_error("Invalid date format. Use YYYY-MM-DD", "date_str")
 
     stats = await get_daily_attendance_stats(check_date, db)
     return stats
@@ -245,12 +248,12 @@ async def create_attendance_from_commits_api(check_date: Optional[str] = None, d
         try:
             date_to_check = date.fromisoformat(check_date)
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+            raise handle_validation_error("Invalid date format. Use YYYY-MM-DD", "check_date")
     else:
         date_to_check = date.today()
 
     result = await create_attendance_from_commits(db, date_to_check)
-    return result
+    return service_result_to_response(result)
 
 
 @router.get("/attendance/hourly-commits")
@@ -284,7 +287,7 @@ async def get_attendance(date_str: str, db: Session = Depends(get_db)):
     try:
         check_date = date.fromisoformat(date_str)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+        raise handle_validation_error("Invalid date format. Use YYYY-MM-DD", "date_str")
 
     attendance_data = db.query(
         Attendance.github_id,

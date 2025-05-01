@@ -9,7 +9,7 @@ from app.models.attendance import Attendance
 from app.models.github_commit import GitHubCommit
 from app.models.user import User
 from app.services.github_service import fetch_and_save_commits, apply_date_filters
-from app.utils.date_utils import get_kst_datetime_range
+from app.utils.error_utils import handle_service_error
 
 # 로깅 설정
 logging.basicConfig(
@@ -52,9 +52,8 @@ async def check_user_commit_and_save(
         return await create_attendance_from_db_commits(github_id, check_date, db)
 
     except Exception as e:
-        logger.error(f"출석 확인 중 오류 발생: {e}", exc_info=True)
         db.rollback()
-        return {"status": "error", "message": str(e)}
+        return handle_service_error(e, f"{github_id} 사용자의 출석 확인")
 
 
 def get_user_by_github_id(db: Session, github_id: str) -> Optional[User]:
@@ -133,9 +132,8 @@ async def create_attendance_from_db_commits(
         }
         
     except Exception as e:
-        logger.error(f"DB 커밋 기반 출석 확인 중 오류 발생: {e}", exc_info=True)
         db.rollback()
-        return {"status": "error", "message": str(e)}
+        return handle_service_error(e, f"{github_id} 사용자의 DB 커밋 기반 출석 확인")
 
 
 async def check_all_attendances(
