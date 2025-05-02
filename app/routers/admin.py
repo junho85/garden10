@@ -416,20 +416,23 @@ async def generate_motivational_prompt(
         current_date = datetime.now().date()
         
         # 마감일 계산 (시작일로부터 99일)
+        total_days = 100  # 총 100일 과정
         end_date_obj = start_date_obj + timedelta(days=99)
         end_date = end_date_obj.strftime("%Y-%m-%d")
         
         # 현재 날짜가 시작일 기준 몇일째인지 계산
         days_since_start = (current_date - start_date_obj).days + 1
+        days_remaining = total_days - days_since_start
         
         # 모든 사용자의 출석 통계 가져오기
         users_stats = await get_all_users_attendance_stats(db, start_date, current_date.strftime("%Y-%m-%d"))
         
         # 프롬프트 기본 정보 구성
-        prompt_base = prompt_data.prompt_template + f"\n현재 정원사들 시즌10 {days_since_start}일째입니다!\n"
+        prompt_base = prompt_data.prompt_template + f"\n현재 정원사들 시즌10 {days_since_start}일째입니다! (총 {total_days}일 중)\n"
         prompt_base += f"시작일: {start_date}\n"
         prompt_base += f"오늘 날짜: {current_date.strftime('%Y-%m-%d')}\n"
-        prompt_base += f"종료일: {end_date}\n\n"
+        prompt_base += f"종료일: {end_date}\n"
+        prompt_base += f"남은 기간: {days_remaining}일\n\n"
         
         # 오늘의 공개된 커밋 내역 가져오기
         today_commits = {}
@@ -459,7 +462,11 @@ async def generate_motivational_prompt(
                 continue
                 
             prompt_base += f"\n{github_id} 유저 출석 현황:\n"
-            prompt_base += f"총 출석 일수: {user_stat.get('attended_days')}/{user_stat.get('total_days')}일 (출석률: {user_stat.get('attendance_rate')}%)\n"
+            prompt_base += f"총 출석 일수: {user_stat.get('attended_days')}/{user_stat.get('total_days')}일 (전체 {total_days}일 중, 출석률: {user_stat.get('attendance_rate')}%)\n"
+            
+            # 진행률 계산 - 전체 100일 기준
+            progress_rate = (user_stat.get('attended_days') / total_days) * 100
+            prompt_base += f"현재 진행률: {progress_rate:.1f}% (전체 {total_days}일 기준)\n"
             prompt_base += f"총 커밋 수: {user_stat.get('total_commits')}개\n"
             
             # 오늘의 공개된 커밋 내역 추가
