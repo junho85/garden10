@@ -94,6 +94,29 @@
             line-height: 1.5;
             font-size: 14px;
         }
+        
+        /* 응원메시지 프롬프트 결과 영역 스타일 */
+        #prompt-result.result-area {
+            background-color: #f8f9fa;
+            color: #333;
+            border: 1px solid #ddd;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+            font-family: 'Noto Sans KR', sans-serif;
+            padding: 20px;
+            position: relative;
+        }
+        
+        #prompt-result.result-area::before {
+            content: "💬 이 내용을 복사해서 AI 도구에 붙여넣으세요";
+            display: block;
+            background-color: #9b59b6;
+            color: white;
+            padding: 8px 15px;
+            margin: -20px -20px 15px -20px;
+            font-weight: bold;
+            border-radius: 4px 4px 0 0;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
 
         /* JSON 데이터 보기 좋게 스타일링 */
         .json-key {
@@ -353,10 +376,11 @@
                         <div class="form-group">
                             <label for="prompt-template">응원메시지 프롬프트</label>
                             <textarea id="prompt-template" placeholder="응원메시지 생성을 위한 프롬프트를 입력하세요.">출석 응원 메시지 작성해줘. 오늘이 몇일째인지도 알려줘. 마크다운을 사용하지 말아줘.</textarea>
+                            <p class="prompt-tip" style="font-size: 0.9em; color: #666; margin-top: 5px;">💡 생성된 프롬프트를 복사하여 ChatGPT 등의 AI 도구에 그대로 붙여넣으면 됩니다.</p>
                         </div>
                         <div class="admin-actions">
                             <button id="generate-prompt" class="admin-button success">프롬프트 생성</button>
-                            <button id="copy-prompt" class="admin-button" disabled>클립보드에 복사</button>
+                            <button id="copy-prompt" class="admin-button" style="background-color: #9b59b6;" disabled>클립보드에 복사</button>
                         </div>
                         <div id="prompt-result" class="hidden result-area"></div>
                     </div>
@@ -737,7 +761,7 @@
                 if (data.success) {
                     resultArea.textContent = data.prompt;
                     copyButton.disabled = false;
-                    showNotification('응원메시지 프롬프트가 생성되었습니다.', false);
+                    showNotification('응원메시지 프롬프트가 생성되었습니다. 복사 버튼을 클릭하여 AI 도구에 붙여넣을 수 있습니다.', false);
                 } else {
                     resultArea.textContent = '오류: ' + data.message;
                     copyButton.disabled = true;
@@ -763,7 +787,16 @@
             // 클립보드에 복사하기
             navigator.clipboard.writeText(promptText)
                 .then(() => {
-                    showNotification('클립보드에 복사되었습니다.', false);
+                    showNotification('클립보드에 복사되었습니다. ChatGPT나 다른 AI 도구에 바로 붙여넣을 수 있습니다.', false);
+                    
+                    // 복사 버튼 텍스트 일시적으로 변경
+                    const copyButton = document.getElementById('copy-prompt');
+                    const originalText = copyButton.textContent;
+                    copyButton.textContent = '✅ 복사됨';
+                    
+                    setTimeout(() => {
+                        copyButton.textContent = originalText;
+                    }, 2000);
                 })
                 .catch(err => {
                     console.error('클립보드 복사 실패:', err);

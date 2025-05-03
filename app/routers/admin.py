@@ -466,7 +466,6 @@ async def generate_motivational_prompt(
             
             # 진행률 계산 - 전체 100일 기준
             progress_rate = (user_stat.get('attended_days') / total_days) * 100
-            prompt_base += f"현재 진행률: {progress_rate:.1f}% (전체 {total_days}일 기준)\n"
             prompt_base += f"총 커밋 수: {user_stat.get('total_commits')}개\n"
             
             # 오늘의 공개된 커밋 내역 추가
