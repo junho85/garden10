@@ -466,6 +466,7 @@ async def generate_motivational_prompt(
             
             # 진행률 계산 - 전체 100일 기준
             progress_rate = (user_stat.get('attended_days') / total_days) * 100
+            prompt_base += f"현재 진행률: {progress_rate:.1f}% (전체 {total_days}일 기준)\n"
             prompt_base += f"총 커밋 수: {user_stat.get('total_commits')}개\n"
             
             # 오늘의 공개된 커밋 내역 추가
@@ -475,11 +476,20 @@ async def generate_motivational_prompt(
                     prompt_base += f"- {commit.repository}: {commit.message.splitlines()[0]}\n"
                 prompt_base += "\n"
             
-            # 날짜별 출석 정보 추가
+            # 날짜별 출석 정보 추가 (최근 1주일만)
             attendance_by_date = user_stat.get("attendance_by_date", {})
-            for date_str, info in sorted(attendance_by_date.items()):
-                status = "✅ 출석" if info.get("is_attended") else "❌ 미출석"
-                prompt_base += f"{date_str}: {status} (커밋 {info.get('commit_count')}개)\n"
+            # 최근 7일 날짜 계산
+            one_week_ago = current_date - timedelta(days=6)
+            recent_dates = [one_week_ago + timedelta(days=i) for i in range(7)]
+            recent_dates_str = [d.strftime("%Y-%m-%d") for d in recent_dates]
+            
+            prompt_base += f"\n최근 1주일 출석 기록:\n"
+            # 날짜순으로 정렬하여 최근 1주일 데이터만 출력
+            for date_str in sorted(attendance_by_date.keys()):
+                if date_str in recent_dates_str:
+                    info = attendance_by_date[date_str]
+                    status = "✅ 출석" if info.get("is_attended") else "❌ 미출석"
+                    prompt_base += f"{date_str}: {status} (커밋 {info.get('commit_count')}개)\n"
                 
             prompt_base += "=" * 60 + "\n"
             
