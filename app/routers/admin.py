@@ -485,11 +485,13 @@ async def generate_motivational_prompt(
             
             prompt_base += f"\n최근 1주일 출석 기록:\n"
             # 날짜순으로 정렬하여 최근 1주일 데이터만 출력
+            today_str = current_date.strftime("%Y-%m-%d")
             for date_str in sorted(attendance_by_date.keys()):
                 if date_str in recent_dates_str:
                     info = attendance_by_date[date_str]
                     status = "✅ 출석" if info.get("is_attended") else "❌ 미출석"
-                    prompt_base += f"{date_str}: {status} (커밋 {info.get('commit_count')}개)\n"
+                    date_display = f"{date_str} (오늘)" if date_str == today_str else date_str
+                    prompt_base += f"{date_display}: {status} (커밋 {info.get('commit_count')}개)\n"
                 
             prompt_base += "=" * 60 + "\n"
             
