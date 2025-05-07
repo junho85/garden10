@@ -8,12 +8,35 @@ import os
 import argparse
 from app.scheduler import init_scheduler
 import logging
+from datetime import datetime
 
 # 로깅 설정
+
+# 로그 디렉토리 확인 및 생성
+log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir, exist_ok=True)
+
+# 로그 파일 경로 설정
+log_date = datetime.now().strftime("%Y-%m-%d")
+log_file = os.path.join(log_dir, f"garden10_{log_date}.log")
+
+# 기본 로깅 설정 (콘솔)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
+# 파일 핸들러 추가
+file_handler = logging.FileHandler(log_file)
+file_handler.setLevel(logging.INFO)
+file_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(file_format)
+
+# 루트 로거에 파일 핸들러 추가
+root_logger = logging.getLogger()
+root_logger.addHandler(file_handler)
+
 logger = logging.getLogger(__name__)
 
 # 앱 라이프스팬 관리 (최신 FastAPI 권장 방식)
@@ -21,20 +44,20 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # 애플리케이션 시작 시 실행
     logger.info("애플리케이션 시작")
-    
+
     # 환경 변수를 통해 스케줄러 활성화 여부 결정
     run_scheduler = os.environ.get("ENABLE_SCHEDULER", "false").lower() == "true"
-    
+
     if run_scheduler:
         logger.info("스케줄러가 활성화되었습니다. 1시간 간격으로 출석 체크가 실행됩니다.")
     else:
         logger.info("스케줄러가 비활성화되었습니다.")
-        
+
     # 스케줄러 초기화
     init_scheduler(run_scheduler=run_scheduler)
-    
+
     yield
-    
+
     # 애플리케이션 종료 시 실행
     logger.info("애플리케이션 종료")
 
@@ -91,10 +114,10 @@ def parse_args():
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     # 명령행 인수 파싱
     args = parse_args()
-    
+
     # 스케줄러 활성화 여부에 따라 환경 변수 설정
     if args.scheduler:
         logger.info("스케줄러가 활성화되었습니다. 1시간 간격으로 출석 체크가 실행됩니다.")
@@ -102,7 +125,7 @@ if __name__ == "__main__":
     else:
         logger.info("스케줄러가 비활성화되었습니다.")
         os.environ["ENABLE_SCHEDULER"] = "false"
-    
+
     # 서버 실행
     uvicorn.run(
         "app.main:app", 
