@@ -35,7 +35,7 @@ class LogEntry(BaseModel):
     timestamp: datetime
     level: str
     message: str
-    
+
 # 응원메시지 프롬프트 요청 모델
 class MotivationalPromptRequest(BaseModel):
     prompt_template: str
@@ -359,46 +359,83 @@ async def add_user(
 @router.get("/admin/logs", response_model=List[LogEntry], tags=["admin"])
 async def view_logs(
     limit: Optional[int] = 50,
+    date: Optional[str] = None,
+    level: Optional[str] = None,
     current_user: User = Depends(get_admin_user)
 ):
     """
     애플리케이션 로그를 조회합니다. (관리자 전용)
 
-    현재는 가상의 로그 데이터를 반환합니다. 실제 로그 파일을 읽는 코드로 대체해야 합니다.
+    - limit: 반환할 최대 로그 항목 수
+    - date: 조회할 로그 날짜 (YYYY-MM-DD 형식, 기본값: 최신 로그 파일)
+    - level: 필터링할 로그 레벨 (INFO, WARNING, ERROR)
     """
     try:
-        # 여기서는 예시로 가상의 로그 데이터를 반환합니다.
-        # 실제 구현에서는 로그 파일을 읽어오거나 로그 DB에서 가져와야 합니다.
-        sample_logs = [
-            LogEntry(
-                timestamp=datetime.now(),
-                level="INFO",
-                message="애플리케이션이 시작되었습니다."
-            ),
-            LogEntry(
-                timestamp=datetime.now(),
-                level="INFO",
-                message="출석 체크가 성공적으로 완료되었습니다."
-            ),
-            LogEntry(
-                timestamp=datetime.now(),
-                level="WARNING",
-                message="GitHub API 응답이 지연되고 있습니다."
-            ),
-            LogEntry(
-                timestamp=datetime.now(),
-                level="ERROR",
-                message="일부 사용자의 출석 체크 중 오류가 발생했습니다."
-            )
-        ]
+        # 로그 디렉토리 경로
+        log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "logs")
 
-        return sample_logs[:limit]
+        # 로그 파일 목록 가져오기
+        log_files = []
+        if os.path.exists(log_dir):
+            for file in os.listdir(log_dir):
+                if file.startswith("garden10_") and file.endswith(".log"):
+                    log_files.append(file)
+
+        if not log_files:
+            return []
+
+        # 날짜별로 정렬 (최신 날짜가 먼저 오도록)
+        log_files.sort(reverse=True)
+
+        # 특정 날짜가 지정된 경우 해당 로그 파일 찾기
+        log_file = None
+        if date:
+            target_file = f"garden10_{date}.log"
+            if target_file in log_files:
+                log_file = os.path.join(log_dir, target_file)
+
+        # 날짜가 지정되지 않았거나 해당 날짜의 로그 파일이 없는 경우 최신 로그 파일 사용
+        if not log_file:
+            log_file = os.path.join(log_dir, log_files[0])
+
+        # 로그 파일 읽기
+        logs = []
+        if os.path.exists(log_file):
+            with open(log_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    try:
+                        # 로그 형식: 2025-05-07 23:38:07,105 - app.main - INFO - Test info message
+                        parts = line.strip().split(' - ', 3)
+                        if len(parts) >= 4:
+                            timestamp_str, module, log_level, message = parts
+
+                            # 레벨 필터링
+                            if level and log_level.upper() != level.upper():
+                                continue
+
+                            # 타임스탬프 파싱
+                            timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S,%f')
+
+                            logs.append(LogEntry(
+                                timestamp=timestamp,
+                                level=log_level,
+                                message=message
+                            ))
+                    except Exception as parse_error:
+                        # 파싱 오류가 있는 라인은 건너뛰기
+                        continue
+
+        # 최신 로그가 먼저 오도록 정렬
+        logs.sort(key=lambda x: x.timestamp, reverse=True)
+
+        # 제한된 수의 로그만 반환
+        return logs[:limit]
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"로그 조회 중 오류가 발생했습니다: {str(e)}"
         )
-        
+
 # 관리자 - 응원메시지 프롬프트 생성
 @router.post("/admin/generate-motivational-prompt", tags=["admin"])
 async def generate_motivational_prompt(
@@ -411,37 +448,37 @@ async def generate_motivational_prompt(
         # 시작일 계산 (정원사들 시즌10 시작일)
         start_date = "2025-03-10"
         start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
-        
+
         # 현재 날짜
         current_date = datetime.now().date()
-        
+
         # 마감일 계산 (시작일로부터 99일)
         total_days = 100  # 총 100일 과정
         end_date_obj = start_date_obj + timedelta(days=99)
         end_date = end_date_obj.strftime("%Y-%m-%d")
-        
+
         # 현재 날짜가 시작일 기준 몇일째인지 계산
         days_since_start = (current_date - start_date_obj).days + 1
         days_remaining = total_days - days_since_start
-        
+
         # 모든 사용자의 출석 통계 가져오기
         users_stats = await get_all_users_attendance_stats(db, start_date, current_date.strftime("%Y-%m-%d"))
-        
+
         # 프롬프트 기본 정보 구성
         prompt_base = prompt_data.prompt_template + f"\n현재 정원사들 시즌10 {days_since_start}일째입니다! (총 {total_days}일 중)\n"
         prompt_base += f"시작일: {start_date}\n"
         prompt_base += f"오늘 날짜: {current_date.strftime('%Y-%m-%d')}\n"
         prompt_base += f"종료일: {end_date}\n"
         prompt_base += f"남은 기간: {days_remaining}일\n\n"
-        
+
         # 오늘의 공개된 커밋 내역 가져오기
         today_commits = {}
         for user_stat in users_stats:
             github_id = user_stat.get("github_id")
-            
+
             # KST 기준으로 오늘 날짜 설정
             start_datetime, end_datetime = get_kst_datetime_range(current_date)
-            
+
             # 오늘 커밋 조회
             user_commits = db.query(GitHubCommit).filter(
                 GitHubCommit.github_id == github_id,
@@ -449,40 +486,40 @@ async def generate_motivational_prompt(
                 GitHubCommit.commit_date <= end_datetime,
                 GitHubCommit.is_private == False  # 공개 커밋만 가져오기
             ).all()
-            
+
             if user_commits:
                 today_commits[github_id] = user_commits
-        
+
         # 각 사용자별 출석 정보 추가
         for user_stat in users_stats:
             github_id = user_stat.get("github_id")
-            
+
             if user_stat.get("total_days") == 0:
                 prompt_base += f"{github_id} 유저의 출석 정보를 찾을 수 없습니다.\n"
                 continue
-                
+
             prompt_base += f"\n{github_id} 유저 출석 현황:\n"
             prompt_base += f"총 출석 일수: {user_stat.get('attended_days')}/{user_stat.get('total_days')}일 (전체 {total_days}일 중, 출석률: {user_stat.get('attendance_rate')}%)\n"
-            
+
             # 진행률 계산 - 전체 100일 기준
             progress_rate = (user_stat.get('attended_days') / total_days) * 100
             prompt_base += f"현재 진행률: {progress_rate:.1f}% (전체 {total_days}일 기준)\n"
             prompt_base += f"총 커밋 수: {user_stat.get('total_commits')}개\n"
-            
+
             # 오늘의 공개된 커밋 내역 추가
             if github_id in today_commits and today_commits[github_id]:
                 prompt_base += f"\n오늘의 공개 커밋 내역:\n"
                 for commit in today_commits[github_id]:
                     prompt_base += f"- {commit.repository}: {commit.message.splitlines()[0]}\n"
                 prompt_base += "\n"
-            
+
             # 날짜별 출석 정보 추가 (최근 1주일만)
             attendance_by_date = user_stat.get("attendance_by_date", {})
             # 최근 7일 날짜 계산
             one_week_ago = current_date - timedelta(days=6)
             recent_dates = [one_week_ago + timedelta(days=i) for i in range(7)]
             recent_dates_str = [d.strftime("%Y-%m-%d") for d in recent_dates]
-            
+
             prompt_base += f"\n최근 1주일 출석 기록:\n"
             # 날짜순으로 정렬하여 최근 1주일 데이터만 출력
             today_str = current_date.strftime("%Y-%m-%d")
@@ -492,15 +529,15 @@ async def generate_motivational_prompt(
                     status = "✅ 출석" if info.get("is_attended") else "❌ 미출석"
                     date_display = f"{date_str} (오늘)" if date_str == today_str else date_str
                     prompt_base += f"{date_display}: {status} (커밋 {info.get('commit_count')}개)\n"
-                
+
             prompt_base += "=" * 60 + "\n"
-            
+
         return {
             "success": True,
             "message": "응원메시지 프롬프트가 생성되었습니다.",
             "prompt": prompt_base
         }
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

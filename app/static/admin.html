@@ -94,7 +94,7 @@
             line-height: 1.5;
             font-size: 14px;
         }
-        
+
         /* 응원메시지 프롬프트 결과 영역 스타일 */
         #prompt-result.result-area {
             background-color: #f8f9fa;
@@ -105,7 +105,7 @@
             padding: 20px;
             position: relative;
         }
-        
+
         #prompt-result.result-area::before {
             content: "💬 이 내용을 복사해서 AI 도구에 붙여넣으세요";
             display: block;
@@ -197,7 +197,7 @@
         .tab-content.active {
             display: block;
         }
-        
+
         /* 알림 스타일 */
         .admin-notification {
             position: fixed;
@@ -218,11 +218,11 @@
             max-height: 50px;
             overflow: hidden;
         }
-        
+
         .admin-notification.error {
             background-color: #dc3545;
         }
-        
+
         @keyframes adminFadeInOut {
             0% { opacity: 0; }
             15% { opacity: 1; }
@@ -358,7 +358,30 @@
                 <div id="logs-tab" class="tab-content">
                     <div class="admin-card">
                         <h3>애플리케이션 로그</h3>
-                        <p>가장 최근의 애플리케이션 로그를 확인합니다.</p>
+                        <p>애플리케이션 로그를 확인합니다. 날짜와 로그 레벨로 필터링할 수 있습니다.</p>
+                        <div class="form-group">
+                            <label for="log-date">날짜 선택</label>
+                            <input type="date" id="log-date">
+                            <small style="display: block; margin-top: 5px; color: #666;">날짜를 선택하지 않으면 최신 로그 파일을 표시합니다.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="log-level">로그 레벨</label>
+                            <select id="log-level">
+                                <option value="">모든 레벨</option>
+                                <option value="INFO">INFO</option>
+                                <option value="WARNING">WARNING</option>
+                                <option value="ERROR">ERROR</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="log-limit">표시할 로그 수</label>
+                            <select id="log-limit">
+                                <option value="50">50개</option>
+                                <option value="100">100개</option>
+                                <option value="200">200개</option>
+                                <option value="500">500개</option>
+                            </select>
+                        </div>
                         <div class="admin-actions">
                             <button id="view-logs" class="admin-button">로그 조회</button>
                         </div>
@@ -367,7 +390,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- 응원메시지 작성 탭 -->
                 <div id="motivational-tab" class="tab-content">
                     <div class="admin-card">
@@ -456,12 +479,12 @@
             document.getElementById('view-logs').addEventListener('click', function() {
                 viewLogs();
             });
-            
+
             // 응원메시지 프롬프트 생성 버튼 이벤트 리스너
             document.getElementById('generate-prompt').addEventListener('click', function() {
                 generateMotivationalPrompt();
             });
-            
+
             // 응원메시지 클립보드 복사 버튼 이벤트 리스너
             document.getElementById('copy-prompt').addEventListener('click', function() {
                 copyPromptToClipboard();
@@ -698,14 +721,41 @@
         // 로그 조회
         function viewLogs() {
             const logsList = document.getElementById('logs-list');
+            const logDate = document.getElementById('log-date').value;
+            const logLevel = document.getElementById('log-level').value;
+            const logLimit = document.getElementById('log-limit').value;
+
             logsList.innerHTML = '<p>로그 조회 중...</p>';
             logsList.classList.remove('hidden');
 
-            fetch('/api/admin/logs')
+            // 쿼리 파라미터 구성
+            let queryParams = new URLSearchParams();
+            if (logDate) queryParams.append('date', logDate);
+            if (logLevel) queryParams.append('level', logLevel);
+            if (logLimit) queryParams.append('limit', logLimit);
+
+            const url = '/api/admin/logs' + (queryParams.toString() ? '?' + queryParams.toString() : '');
+
+            fetch(url)
                 .then(response => response.json())
                 .then(logs => {
                     logsList.innerHTML = '';
 
+                    // 로그 파일 정보 표시
+                    const logInfo = document.createElement('div');
+                    logInfo.style.marginBottom = '15px';
+                    logInfo.style.padding = '10px';
+                    logInfo.style.backgroundColor = '#f8f9fa';
+                    logInfo.style.borderRadius = '4px';
+                    logInfo.style.border = '1px solid #dee2e6';
+
+                    const dateInfo = logDate ? logDate : '최신 로그';
+                    const levelInfo = logLevel ? logLevel : '모든 레벨';
+                    logInfo.innerHTML = `<strong>로그 정보:</strong> ${dateInfo} (${levelInfo}) - ${logs.length}개 항목`;
+
+                    logsList.appendChild(logInfo);
+
+                    // 로그 항목 표시
                     logs.forEach(log => {
                         const logEntry = document.createElement('div');
                         logEntry.className = `log-entry log-level-${log.level.toLowerCase()}`;
@@ -724,29 +774,34 @@
                     });
 
                     if (logs.length === 0) {
-                        logsList.innerHTML = '<p>조회된 로그가 없습니다.</p>';
+                        const noLogsMsg = document.createElement('p');
+                        noLogsMsg.textContent = '조회된 로그가 없습니다.';
+                        noLogsMsg.style.padding = '15px';
+                        noLogsMsg.style.textAlign = 'center';
+                        noLogsMsg.style.color = '#6c757d';
+                        logsList.appendChild(noLogsMsg);
                     }
                 })
                 .catch(error => {
                     logsList.innerHTML = `<p>로그 조회 중 오류 발생: ${error.message}</p>`;
                 });
         }
-        
+
         // 응원메시지 프롬프트 생성
         function generateMotivationalPrompt() {
             const promptTemplate = document.getElementById('prompt-template').value;
             const resultArea = document.getElementById('prompt-result');
             const copyButton = document.getElementById('copy-prompt');
-            
+
             if (!promptTemplate) {
                 showNotification('프롬프트 템플릿을 입력해주세요.', true);
                 return;
             }
-            
+
             resultArea.textContent = '응원메시지 프롬프트 생성 중...';
             resultArea.classList.remove('hidden');
             copyButton.disabled = true;
-            
+
             fetch('/api/admin/generate-motivational-prompt', {
                 method: 'POST',
                 headers: {
@@ -774,26 +829,26 @@
                 showNotification('프롬프트 생성 중 오류가 발생했습니다.', true);
             });
         }
-        
+
         // 응원메시지 프롬프트 클립보드에 복사
         function copyPromptToClipboard() {
             const promptText = document.getElementById('prompt-result').textContent;
-            
+
             if (!promptText) {
                 showNotification('복사할 내용이 없습니다.', true);
                 return;
             }
-            
+
             // 클립보드에 복사하기
             navigator.clipboard.writeText(promptText)
                 .then(() => {
                     showNotification('클립보드에 복사되었습니다. ChatGPT나 다른 AI 도구에 바로 붙여넣을 수 있습니다.', false);
-                    
+
                     // 복사 버튼 텍스트 일시적으로 변경
                     const copyButton = document.getElementById('copy-prompt');
                     const originalText = copyButton.textContent;
                     copyButton.textContent = '✅ 복사됨';
-                    
+
                     setTimeout(() => {
                         copyButton.textContent = originalText;
                     }, 2000);
