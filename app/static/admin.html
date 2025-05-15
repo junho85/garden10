@@ -762,7 +762,10 @@
 
                         const logTime = document.createElement('div');
                         logTime.className = 'log-time';
-                        logTime.textContent = new Date(log.timestamp).toLocaleString();
+                        // Format timestamp with milliseconds
+                        const timestamp = new Date(log.timestamp);
+                        const formattedTime = timestamp.toLocaleString() + '.' + String(timestamp.getMilliseconds()).padStart(3, '0');
+                        logTime.textContent = formattedTime;
 
                         const logMessage = document.createElement('div');
                         logMessage.className = 'log-message';
