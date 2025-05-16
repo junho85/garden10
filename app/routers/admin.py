@@ -17,6 +17,7 @@ from app.services.attendance_service import check_all_attendances, create_attend
 from app.utils.auth_utils import get_admin_user
 from app.services.github_service import get_all_users_attendance_stats
 from app.utils.date_utils import get_kst_datetime_range
+from app.config import config
 
 router = APIRouter()
 
@@ -445,16 +446,23 @@ async def generate_motivational_prompt(
 ):
     """출석 데이터를 바탕으로 응원메시지 프롬프트를 생성합니다. (관리자 전용)"""
     try:
-        # 시작일 계산 (정원사들 시즌10 시작일)
-        start_date = "2025-03-10"
+        # 프로젝트 설정에서 시작일과 총 일수 가져오기
+        if config.project:
+            # ProjectConfig 객체에서 값 가져오기
+            start_date = config.project.start_date
+            total_days = config.project.total_days
+        else:
+            # 기본값 설정
+            start_date = "2025-03-10"
+            total_days = 100
+        
         start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
 
         # 현재 날짜
         current_date = datetime.now().date()
 
-        # 마감일 계산 (시작일로부터 99일)
-        total_days = 100  # 총 100일 과정
-        end_date_obj = start_date_obj + timedelta(days=99)
+        # 마감일 계산 (시작일로부터 총 일수-1일)
+        end_date_obj = start_date_obj + timedelta(days=total_days-1)
         end_date = end_date_obj.strftime("%Y-%m-%d")
 
         # 현재 날짜가 시작일 기준 몇일째인지 계산

@@ -19,11 +19,17 @@ class AppConfig(BaseSettings):
     github: dict
     admin: Optional[dict] = None
     auth: Optional[dict] = None
-    project: Optional[Dict] = None
+    project: Optional[ProjectConfig] = None
 
     @classmethod
     def from_yaml(cls, file_path: str):
         config_data = load_yaml_config(file_path)
+        
+        # Extract project config and convert it to ProjectConfig if it exists
+        project_data = config_data.get('project')
+        if project_data:
+            config_data['project'] = ProjectConfig(**project_data)
+            
         return cls(**config_data)
 
 
