@@ -102,9 +102,9 @@ async def get_attendance_stats(
         db: Session = Depends(get_db)
 ):
     """출석 통계를 조회합니다."""
-    print("get_attendance_stats")
-    print("start_date", start_date)
-    print("end_date", end_date)
+    logger.info("get_attendance_stats")
+    logger.debug(f"start_date: {start_date}")
+    logger.debug(f"end_date: {end_date}")
 
     # 시작일과 종료일 설정
     if start_date:
@@ -216,7 +216,7 @@ async def get_attendance_stats(
 @router.get("/attendance/stats/{date_str}")
 async def get_attendance_stats_for_date(date_str: str, db: Session = Depends(get_db)):
     """특정 날짜의 출석 통계를 조회합니다."""
-    print("get_attendance_stats_for_date")
+    logger.info("get_attendance_stats_for_date")
     try:
         check_date = date.fromisoformat(date_str)
     except ValueError:
@@ -233,8 +233,8 @@ async def get_attendance_ranking(
         db: Session = Depends(get_db)
 ):
     """출석률 순위를 조회합니다."""
-    print("start_date", start_date)
-    print("end_date", end_date)
+    logger.debug(f"start_date: {start_date}")
+    logger.debug(f"end_date: {end_date}")
 
     stats = await get_attendance_stats(start_date, end_date, db)
     return stats["users"]
