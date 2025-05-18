@@ -95,18 +95,9 @@ async def get_attendance_history(
     return history
 
 
-@router.get("/attendance/stats")
-async def get_attendance_stats(
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        db: Session = Depends(get_db)
-):
-    """출석 통계를 조회합니다."""
-    logger.info("get_attendance_stats")
-    logger.debug(f"start_date: {start_date}")
-    logger.debug(f"end_date: {end_date}")
-
-    # 시작일과 종료일 설정
+def _parse_date_range(start_date: Optional[str], end_date: Optional[str]):
+    """시작일과 종료일을 파싱합니다."""
+    # 시작일 설정
     if start_date:
         try:
             start = date.fromisoformat(start_date)
@@ -126,6 +117,7 @@ async def get_attendance_stats(
             logger.error(f"Error parsing project start_date: {e}")
             start = date(2025, 3, 10)  # 기본값
 
+    # 종료일 설정
     if end_date:
         try:
             end = date.fromisoformat(end_date)
@@ -134,11 +126,12 @@ async def get_attendance_stats(
             raise handle_validation_error("Invalid date format. Use YYYY-MM-DD", "end_date")
     else:
         end = date.today()
+        
+    return start, end
 
-    # 날짜 범위 생성
-    days_completed = (end - start).days + 1
-    
-    # 총 프로젝트 일수 설정
+
+def _get_total_project_days():
+    """프로젝트 총 일수를 가져옵니다."""
     total_project_days = 100  # 기본값
     try:
         project_config = config.project
@@ -147,10 +140,11 @@ async def get_attendance_stats(
     except (ValueError, KeyError) as e:
         logger.error(f"Error parsing project total_days: {e}")
     
-    date_list = [(start + timedelta(days=i)).isoformat() for i in range(days_completed)]
+    return total_project_days
 
-    # 사용자별 출석 데이터 조회
-    users = db.query(User).all()
+
+def _calculate_user_stats(users, date_list, start, end, db):
+    """사용자별 출석 데이터를 계산합니다."""
     user_stats = []
 
     for user in users:
@@ -182,8 +176,12 @@ async def get_attendance_stats(
     user_stats.sort(key=lambda x: x["attendance_rate"], reverse=True)
     for i, user in enumerate(user_stats):
         user["rank"] = i + 1
+        
+    return user_stats
 
-    # 날짜별 출석률 계산
+
+def _calculate_daily_rates(date_list, user_stats, users):
+    """날짜별 출석률을 계산합니다."""
     daily_rates = []
     for i, d in enumerate(date_list):
         attended_count = sum(1 for user in user_stats if user["attendance"][i])
@@ -192,13 +190,55 @@ async def get_attendance_stats(
             "date": d,
             "rate": daily_rate
         })
+    return daily_rates
 
-    # 총 출석/미출석 수 계산
+
+def _calculate_attendance_summary(user_stats, users, date_list):
+    """전체 출석 통계를 계산합니다."""
     total_present = sum(user["attended_count"] for user in user_stats)
     total_possible = len(users) * len(date_list)
     total_absent = total_possible - total_present
     overall_attendance_rate = round(total_present / total_possible * 100) if total_possible else 0
+    
+    return {
+        "total_present": total_present,
+        "total_absent": total_absent,
+        "overall_attendance_rate": overall_attendance_rate
+    }
 
+
+@router.get("/attendance/stats")
+async def get_attendance_stats(
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        db: Session = Depends(get_db)
+):
+    """출석 통계를 조회합니다."""
+    logger.info("get_attendance_stats")
+    logger.debug(f"start_date: {start_date}")
+    logger.debug(f"end_date: {end_date}")
+
+    # 시작일과 종료일 설정
+    start, end = _parse_date_range(start_date, end_date)
+    
+    # 날짜 범위 생성
+    days_completed = (end - start).days + 1
+    
+    # 총 프로젝트 일수 설정
+    total_project_days = _get_total_project_days()
+    
+    date_list = [(start + timedelta(days=i)).isoformat() for i in range(days_completed)]
+
+    # 사용자별 출석 데이터 조회
+    users = db.query(User).all()
+    user_stats = _calculate_user_stats(users, date_list, start, end, db)
+
+    # 날짜별 출석률 계산
+    daily_rates = _calculate_daily_rates(date_list, user_stats, users)
+
+    # 총 출석 통계 계산
+    attendance_summary = _calculate_attendance_summary(user_stats, users, date_list)
+    
     return {
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
@@ -207,9 +247,7 @@ async def get_attendance_stats(
         "dates": date_list,
         "users": user_stats,
         "daily_rates": daily_rates,
-        "total_present": total_present,
-        "total_absent": total_absent,
-        "overall_attendance_rate": overall_attendance_rate
+        **attendance_summary
     }
 
 
