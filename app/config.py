@@ -20,6 +20,7 @@ class AppConfig(BaseSettings):
     admin: Optional[dict] = None
     auth: Optional[dict] = None
     project: Optional[ProjectConfig] = None
+    openai: Optional[dict] = None
 
     @classmethod
     def from_yaml(cls, file_path: str):
