@@ -413,7 +413,17 @@
                         <p>OpenAI를 사용하여 응원메시지를 자동으로 생성합니다.</p>
                         <div class="form-group">
                             <label for="ai-prompt-template">응원메시지 템플릿</label>
-                            <textarea id="ai-prompt-template" placeholder="응원메시지 생성을 위한 템플릿을 입력하세요." rows="4">정원사들의 출석 현황을 보고 따뜻하고 격려적인 응원 메시지를 작성해주세요. 각 참여자의 진행 상황을 언급하며, 앞으로 남은 기간 동안 함께 완주할 수 있도록 격려해주세요.</textarea>
+                            <textarea id="ai-prompt-template" placeholder="응원메시지 생성을 위한 템플릿을 입력하세요." rows="10">
+정원사들의 출석 현황을 보고 다음 요소를 포함한 응원 메시지를 작성해주세요.
+1. 출석률에 대한 긍정적인 평가
+2. 개인별 성취에 대한 구체적인 칭찬
+3. 앞으로의 목표나 다짐
+4. 이모지를 활용한 친근한 표현
+
+포멧
+1. 마크다운을 사용하지 마세요.
+2. 모바일 메시지로도 잘 보이도록 개행을 활용해서 작성해주세요.
+</textarea>
                         </div>
                         <div class="form-group">
                             <label>
