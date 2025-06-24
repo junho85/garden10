@@ -20,3 +20,11 @@ API documentation is available through Swagger UI and ReDoc.
   - Swagger: https://garden10.junho85.pe.kr/docs
   - ReDoc: https://garden10.junho85.pe.kr/redoc
 
+## Deployment
+
+```bash
+git pull
+pip install -r requirements.txt
+# python -m app.main --scheduler --port=8010
+python -m app.main --port=8010
+```
