@@ -74,14 +74,24 @@ async def read_user_commits(
         # 날짜 파라미터가 없는 경우 프로젝트 기간 사용
         if not from_date and not to_date and config.project:
             # 프로젝트 시작일 가져오기
-            if "start_date" in config.project:
+            if hasattr(config.project, 'start_date'):
                 try:
-                    start_date = date.fromisoformat(config.project["start_date"])
+                    start_date = date.fromisoformat(config.project.start_date)
                 except ValueError:
                     logger.warning("프로젝트 시작일 형식이 잘못되었습니다.")
             
-            # 프로젝트 종료일은 오늘로 설정 (또는 프로젝트 정의된 종료일)
-            end_date = date.today()
+            # 프로젝트 종료일 계산
+            if start_date and hasattr(config.project, 'total_days'):
+                try:
+                    total_days = int(config.project.total_days)
+                    project_end_date = start_date + timedelta(days=total_days - 1)
+                    # 프로젝트가 종료되었으면 프로젝트 종료일, 아니면 오늘 날짜 사용
+                    end_date = min(date.today(), project_end_date)
+                except ValueError:
+                    logger.warning("프로젝트 총 일수 형식이 잘못되었습니다.")
+                    end_date = date.today()
+            else:
+                end_date = date.today()
         
         # 명시적으로 지정된 날짜 범위가 있는 경우
         if from_date:
@@ -185,14 +195,24 @@ async def read_user_commits_stats(
         # 날짜 파라미터가 없는 경우 프로젝트 기간 사용
         if not from_date and not to_date and config.project:
             # 프로젝트 시작일 가져오기
-            if "start_date" in config.project:
+            if hasattr(config.project, 'start_date'):
                 try:
-                    start_date = date.fromisoformat(config.project["start_date"])
+                    start_date = date.fromisoformat(config.project.start_date)
                 except ValueError:
                     logger.warning("프로젝트 시작일 형식이 잘못되었습니다.")
             
-            # 프로젝트 종료일은 오늘로 설정 (또는 프로젝트 정의된 종료일)
-            end_date = date.today()
+            # 프로젝트 종료일 계산
+            if start_date and hasattr(config.project, 'total_days'):
+                try:
+                    total_days = int(config.project.total_days)
+                    project_end_date = start_date + timedelta(days=total_days - 1)
+                    # 프로젝트가 종료되었으면 프로젝트 종료일, 아니면 오늘 날짜 사용
+                    end_date = min(date.today(), project_end_date)
+                except ValueError:
+                    logger.warning("프로젝트 총 일수 형식이 잘못되었습니다.")
+                    end_date = date.today()
+            else:
+                end_date = date.today()
         
         # 명시적으로 지정된 날짜 범위가 있는 경우
         if from_date:
@@ -273,26 +293,28 @@ async def read_user_daily_commits(
             if config.project:
                 # 프로젝트 시작일 확인
                 project_start = None
-                if "start_date" in config.project:
+                if hasattr(config.project, 'start_date'):
                     try:
-                        project_start = date.fromisoformat(config.project["start_date"])
+                        project_start = date.fromisoformat(config.project.start_date)
                         start_date = project_start  # 프로젝트 시작일 사용
                     except ValueError:
                         logger.warning("프로젝트 시작일 형식이 잘못되었습니다.")
                 
                 # 총 일수(total_days)를 이용하여 종료일 계산
-                if project_start and "total_days" in config.project:
+                if project_start and hasattr(config.project, 'total_days'):
                     try:
-                        total_days = int(config.project["total_days"])
+                        total_days = int(config.project.total_days)
                         # 시작일 + 총 일수 - 1 = 종료일
-                        end_date = project_start + timedelta(days=total_days - 1)
+                        project_end_date = project_start + timedelta(days=total_days - 1)
+                        # 프로젝트가 종료되었으면 프로젝트 종료일 사용
+                        end_date = min(date.today(), project_end_date)
                     except (ValueError, TypeError):
                         logger.warning("프로젝트 총 일수(total_days) 형식이 잘못되었습니다.")
                         
                 # total_days 없이 직접 종료일이 설정된 경우
-                elif "end_date" in config.project:
+                elif hasattr(config.project, 'end_date'):
                     try:
-                        project_end = date.fromisoformat(config.project["end_date"])
+                        project_end = date.fromisoformat(config.project.end_date)
                         end_date = project_end
                     except ValueError:
                         logger.warning("프로젝트 종료일 형식이 잘못되었습니다.")
