@@ -124,12 +124,24 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(data => {
                 // 진행률 계산
                 const totalDays = data.total_days;           // 총 프로젝트 일수 (설정값)
-                const daysCompleted = data.days_completed;   // 현재까지 진행된 일수
-                const progressPercent = Math.round((daysCompleted / totalDays) * 100);
+                let daysCompleted = data.days_completed;     // 현재까지 진행된 일수
+                const isCompleted = data.is_completed;       // 프로젝트 종료 여부
+                
+                // 프로젝트가 종료되었으면 진행 일수를 총 일수로 제한
+                if (isCompleted) {
+                    daysCompleted = Math.min(daysCompleted, totalDays);
+                }
+                
+                const progressPercent = Math.min(Math.round((daysCompleted / totalDays) * 100), 100);
                 
                 // 진행률 표시
-                document.getElementById('progress-text').textContent = 
-                    `총 ${totalDays}일 중 ${daysCompleted}일 진행 (${progressPercent}%)`;
+                let progressText = `총 ${totalDays}일 중 ${daysCompleted}일 진행 (${progressPercent}%)`;
+                if (isCompleted) {
+                    progressText += ' - 종료됨';
+                    // 프로그레스 바 색상 변경 (선택사항)
+                    document.getElementById('progress-fill').style.backgroundColor = '#28a745';
+                }
+                document.getElementById('progress-text').textContent = progressText;
                 
                 // 프로그레스 바 업데이트
                 document.getElementById('progress-fill').style.width = `${progressPercent}%`;
@@ -150,13 +162,41 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // 오늘의 출석 현황 로드
     function loadTodayAttendance() {
-        // 오늘 날짜 가져오기
-        const today = new Date();
-        const formattedDate = getFormattedDate(today)
-
-        // 날짜 표시
-        const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
-        document.getElementById('today-date').textContent = today.toLocaleDateString('ko-KR', options);
+        // 먼저 프로젝트 종료 여부 확인
+        fetch('/api/attendance/stats')
+            .then(response => response.json())
+            .then(data => {
+                const isCompleted = data.is_completed;
+                const endDate = data.end_date;
+                
+                // 프로젝트가 종료되었으면 마지막 날짜로 고정
+                const displayDate = isCompleted ? new Date(endDate) : new Date();
+                const formattedDate = getFormattedDate(displayDate);
+                
+                // 날짜 표시
+                const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+                let dateText = displayDate.toLocaleDateString('ko-KR', options);
+                if (isCompleted) {
+                    dateText += ' (종료됨)';
+                }
+                document.getElementById('today-date').textContent = dateText;
+                
+                // 출석 데이터 로드
+                loadAttendanceForDate(formattedDate);
+            })
+            .catch(error => {
+                console.error('프로젝트 상태 확인 중 오류:', error);
+                // 오류 발생 시 기본 동작
+                const today = new Date();
+                const formattedDate = getFormattedDate(today);
+                const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+                document.getElementById('today-date').textContent = today.toLocaleDateString('ko-KR', options);
+                loadAttendanceForDate(formattedDate);
+            });
+    }
+    
+    // 특정 날짜의 출석 데이터 로드
+    function loadAttendanceForDate(formattedDate) {
         
         // 오늘의 출석 데이터 불러오기
         fetch(`/api/attendance/${formattedDate}`)

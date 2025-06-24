@@ -317,22 +317,34 @@ class AdminService:
         end_date_obj = start_date_obj + timedelta(days=total_days-1)
         end_date = end_date_obj.strftime("%Y-%m-%d")
         
-        days_since_start = (current_date - start_date_obj).days + 1
-        days_remaining = total_days - days_since_start
+        # 프로젝트 종료 여부 확인
+        is_completed = current_date > end_date_obj
+        display_date = min(current_date, end_date_obj)
         
-        users_stats = await get_all_users_attendance_stats(db, start_date, current_date.strftime("%Y-%m-%d"))
+        days_since_start = (display_date - start_date_obj).days + 1
+        days_remaining = max(0, total_days - days_since_start)
         
-        prompt_base = prompt_template + f"\n현재 정원사들 시즌10 {days_since_start}일째입니다! (총 {total_days}일 중)\n"
+        users_stats = await get_all_users_attendance_stats(db, start_date, display_date.strftime("%Y-%m-%d"))
+        
+        if is_completed:
+            prompt_base = prompt_template + f"\n정원사들 시즌10이 {end_date}에 종료되었습니다! (총 {total_days}일 완주)\n"
+        else:
+            prompt_base = prompt_template + f"\n현재 정원사들 시즌10 {days_since_start}일째입니다! (총 {total_days}일 중)\n"
+        
         prompt_base += f"시작일: {start_date}\n"
-        prompt_base += f"오늘 날짜: {current_date.strftime('%Y-%m-%d')}\n"
         prompt_base += f"종료일: {end_date}\n"
-        prompt_base += f"남은 기간: {days_remaining}일\n\n"
+        
+        if is_completed:
+            prompt_base += f"최종 기준 날짜: {display_date.strftime('%Y-%m-%d')} (종료됨)\n\n"
+        else:
+            prompt_base += f"오늘 날짜: {current_date.strftime('%Y-%m-%d')}\n"
+            prompt_base += f"남은 기간: {days_remaining}일\n\n"
         
         today_commits = {}
         for user_stat in users_stats:
             github_id = user_stat.get("github_id")
             
-            start_datetime, end_datetime = get_kst_datetime_range(current_date)
+            start_datetime, end_datetime = get_kst_datetime_range(display_date)
             
             user_commits = db.query(GitHubCommit).filter(
                 GitHubCommit.github_id == github_id,
@@ -359,23 +371,25 @@ class AdminService:
             prompt_base += f"총 커밋 수: {user_stat.get('total_commits')}개\n"
             
             if github_id in today_commits and today_commits[github_id]:
-                prompt_base += f"\n오늘의 공개 커밋 내역:\n"
+                commit_date_label = "종료일" if is_completed else "오늘"
+                prompt_base += f"\n{commit_date_label}의 공개 커밋 내역:\n"
                 for commit in today_commits[github_id]:
                     prompt_base += f"- {commit.repository}: {commit.message.splitlines()[0]}\n"
                 prompt_base += "\n"
             
             attendance_by_date = user_stat.get("attendance_by_date", {})
-            one_week_ago = current_date - timedelta(days=6)
+            one_week_ago = display_date - timedelta(days=6)
             recent_dates = [one_week_ago + timedelta(days=i) for i in range(7)]
             recent_dates_str = [d.strftime("%Y-%m-%d") for d in recent_dates]
             
             prompt_base += f"\n최근 1주일 출석 기록:\n"
-            today_str = current_date.strftime("%Y-%m-%d")
+            today_str = display_date.strftime("%Y-%m-%d")
             for date_str in sorted(attendance_by_date.keys()):
                 if date_str in recent_dates_str:
                     info = attendance_by_date[date_str]
                     status = "✅ 출석" if info.get("is_attended") else "❌ 미출석"
-                    date_display = f"{date_str} (오늘)" if date_str == today_str else date_str
+                    date_label = "종료일" if is_completed and date_str == today_str else ("오늘" if date_str == today_str else "")
+                    date_display = f"{date_str} ({date_label})" if date_label else date_str
                     prompt_base += f"{date_display}: {status} (커밋 {info.get('commit_count')}개)\n"
             
             prompt_base += "=" * 60 + "\n"

@@ -108,8 +108,8 @@ def _parse_date_range(start_date: Optional[str], end_date: Optional[str]):
         # 기본 시작일 (프로젝트 설정값 사용)
         try:
             project_config = config.project
-            if project_config and "start_date" in project_config:
-                start = date.fromisoformat(project_config["start_date"])
+            if project_config and hasattr(project_config, 'start_date'):
+                start = date.fromisoformat(project_config.start_date)
             else:
                 logger.warning("Project start_date not configured, using default")
                 start = date(2025, 3, 10)  # 기본값
@@ -117,6 +117,17 @@ def _parse_date_range(start_date: Optional[str], end_date: Optional[str]):
             logger.error(f"Error parsing project start_date: {e}")
             start = date(2025, 3, 10)  # 기본값
 
+    # 프로젝트 종료일 계산
+    project_end_date = None
+    try:
+        project_config = config.project
+        if project_config and hasattr(project_config, 'total_days') and hasattr(project_config, 'start_date'):
+            project_start = date.fromisoformat(project_config.start_date)
+            total_days = int(project_config.total_days)
+            project_end_date = project_start + timedelta(days=total_days - 1)
+    except (ValueError, KeyError) as e:
+        logger.error(f"Error calculating project end date: {e}")
+    
     # 종료일 설정
     if end_date:
         try:
@@ -125,7 +136,15 @@ def _parse_date_range(start_date: Optional[str], end_date: Optional[str]):
             logger.error(f"Invalid end_date format: {e}")
             raise handle_validation_error("Invalid date format. Use YYYY-MM-DD", "end_date")
     else:
-        end = date.today()
+        # 프로젝트가 종료되었으면 종료일로, 아니면 오늘 날짜로 설정
+        if project_end_date and date.today() > project_end_date:
+            end = project_end_date
+        else:
+            end = date.today()
+    
+    # 프로젝트가 종료되었는데 end가 프로젝트 종료일보다 뒤면 조정
+    if project_end_date and end > project_end_date:
+        end = project_end_date
         
     return start, end
 
@@ -135,8 +154,8 @@ def _get_total_project_days():
     total_project_days = 100  # 기본값
     try:
         project_config = config.project
-        if project_config and "total_days" in project_config:
-            total_project_days = int(project_config["total_days"])
+        if project_config and hasattr(project_config, 'total_days'):
+            total_project_days = int(project_config.total_days)
     except (ValueError, KeyError) as e:
         logger.error(f"Error parsing project total_days: {e}")
     
@@ -227,6 +246,18 @@ async def get_attendance_stats(
     # 총 프로젝트 일수 설정
     total_project_days = _get_total_project_days()
     
+    # 프로젝트 종료 여부 확인
+    project_config = config.project
+    is_completed = False
+    if project_config and hasattr(project_config, 'start_date'):
+        project_start = date.fromisoformat(project_config.start_date)
+        project_end_date = project_start + timedelta(days=total_project_days - 1)
+        is_completed = date.today() > project_end_date
+        
+        # 프로젝트가 종료되었으면 days_completed를 total_days로 제한
+        if is_completed:
+            days_completed = min(days_completed, total_project_days)
+    
     date_list = [(start + timedelta(days=i)).isoformat() for i in range(days_completed)]
 
     # 사용자별 출석 데이터 조회
@@ -244,6 +275,7 @@ async def get_attendance_stats(
         "end_date": end.isoformat(),
         "days_completed": days_completed,
         "total_days": total_project_days,  # 총 프로젝트 일수
+        "is_completed": is_completed,  # 프로젝트 완료 여부
         "dates": date_list,
         "users": user_stats,
         "daily_rates": daily_rates,
@@ -295,16 +327,34 @@ async def create_attendance_from_commits_api(check_date: Optional[str] = None, d
 
 
 @router.get("/attendance/hourly-commits")
-async def get_hourly_commits(db: Session = Depends(get_db)):
+async def get_hourly_commits(
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        db: Session = Depends(get_db)
+):
     """시간대별 커밋 수 분포를 조회합니다."""
     from sqlalchemy.sql import extract, func
     from app.models.github_commit import GitHubCommit
     
+    # 시작일과 종료일 설정
+    start, end = _parse_date_range(start_date, end_date)
+    
     # 시간대별 커밋 수를 가져오는 쿼리 (한국 시간 기준)
-    hourly_commits = db.query(
+    # 날짜 범위를 적용하여 프로젝트 기간 내의 커밋만 조회
+    query = db.query(
         extract('hour', func.timezone('Asia/Seoul', GitHubCommit.commit_date)).label('hour'),
         func.count().label('count')
-    ).group_by('hour').order_by('hour').all()
+    )
+    
+    # 날짜 범위 필터 추가
+    start_datetime = datetime.combine(start, datetime.min.time())
+    end_datetime = datetime.combine(end, datetime.max.time())
+    query = query.filter(
+        GitHubCommit.commit_date >= start_datetime,
+        GitHubCommit.commit_date <= end_datetime
+    )
+    
+    hourly_commits = query.group_by('hour').order_by('hour').all()
     
     # 0-23시까지 비어있는 시간대를 0으로 채우기 위한 기본 데이터 구성
     hourly_data = {hour: 0 for hour in range(24)}

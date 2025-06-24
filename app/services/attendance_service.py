@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import List, Dict, Any, Optional
 
 from sqlalchemy.orm import Session
@@ -152,6 +152,21 @@ async def check_all_attendances(
     """
     if check_date is None:
         check_date = date.today()
+    
+    # 프로젝트 종료일 확인
+    project_config = config.project
+    if project_config and "start_date" in project_config and "total_days" in project_config:
+        project_start = date.fromisoformat(project_config["start_date"])
+        project_end = project_start + timedelta(days=int(project_config["total_days"]) - 1)
+        
+        # 프로젝트가 종료되었고 check_date가 종료일 이후면 종료 메시지 반환
+        if check_date > project_end:
+            return {
+                "status": "info",
+                "message": f"프로젝트가 {project_end.isoformat()}에 종료되었습니다.",
+                "date": check_date.isoformat(),
+                "project_completed": True
+            }
 
     # 공통 GitHub API 토큰 
     common_github_api_token = config.github.get("api_token", "")
@@ -234,6 +249,21 @@ async def create_attendance_from_commits(db: Session, check_date: Optional[date]
     """
     if check_date is None:
         check_date = date.today()
+    
+    # 프로젝트 종료일 확인
+    project_config = config.project
+    if project_config and "start_date" in project_config and "total_days" in project_config:
+        project_start = date.fromisoformat(project_config["start_date"])
+        project_end = project_start + timedelta(days=int(project_config["total_days"]) - 1)
+        
+        # 프로젝트가 종료되었고 check_date가 종료일 이후면 종료 메시지 반환
+        if check_date > project_end:
+            return {
+                "status": "info",
+                "message": f"프로젝트가 {project_end.isoformat()}에 종료되었습니다.",
+                "date": check_date.isoformat(),
+                "project_completed": True
+            }
     
     # 모든 사용자 가져오기
     users = db.query(User).all()
